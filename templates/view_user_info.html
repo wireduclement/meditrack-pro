@@ -1,0 +1,66 @@
+{% include "header.html" %}
+{% from 'bootstrap5/form.html' import render_form %}
+
+<div class="container-fluid">
+  <div class="row">
+    {% include "sidebar.html" %}
+
+    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+      <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">User Information</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+          <div class="btn-group me-2">
+            <a>{{ name }} - {{ role }}</a>
+            <img src="../static/svg/user.svg" class="spaced-img">
+          </div>
+        </div>
+      </div>
+    
+      <div class="container">
+        <div class="row justify-content-left">
+          <div class="col-md-10">
+
+            <div class="user-field">
+                <div class="user-label">Name</div>
+                <div class="user-value">{{ user_data[2] }}  {{ user_data[3] }} {{ user_data[4] }}</div>
+            </div>
+
+            <div class="user-field">
+                <div class="user-label">Date Of Birth</div>
+                <div class="user-value">{{ user_data[5] }}</div>
+            </div>
+
+            <div class="user-field">
+                <div class="user-label">Email address</div>
+                <div class="user-value">{{ user_data[6] }}</div>
+            </div>
+
+            <div class="user-field">
+                <div class="user-label">Gender</div>
+                <div class="user-value">{{ user_data[7] }}</div>
+            </div>
+
+            <div class="user-field">
+                <div class="user-label">Home address</div>
+                <div class="user-value">{{ user_data[8] }}</div>
+            </div>
+            
+            <div class="user-field">
+                <div class="user-label">Marital Status</div>
+                <div class="user-value">{{ user_data[9] }}</div>
+            </div>
+            
+          </div>
+        </div>
+
+        <hr>
+        <p><a href="{{ url_for('user_info') }}">Return to previous page</a></p>
+      </div>
+    </main>
+    
+  </div>
+</div>
+
+
+
+{% include "footer.html" %}

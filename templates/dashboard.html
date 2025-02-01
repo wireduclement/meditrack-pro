@@ -1,0 +1,99 @@
+{% include "header.html" %}
+
+<div class="container-fluid">
+  <div class="row">
+    {% include "sidebar.html" %}
+
+    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+      <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Admin Dashboard</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+          <div class="btn-group me-2">
+            <a>{{ name }} - {{ role }}</a>
+            <img src="../static/svg/user.svg" class="spaced-img">
+          </div>
+        </div>
+      </div>
+
+      <div class="container mt-4">
+        <!-- Flash message for caution -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div>
+              {% for category, message in messages %}
+                <div class="alert alert-{{ category }}" role="alert">
+                  {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        <div class="row">
+          <!-- First Column, First Row -->
+          <div class="col-md-6 mb-3">
+            <div class="card w-100">
+              <div class="card-body">
+                <h5 class="card-title d-flex justify-content-between align-items-center">Sales
+                  <img src="../static/svg/total_sales.svg" class="rep-img" alt="Total Sales">
+                </h5>
+                <p class="card-text ">Total:</p>
+                <p>0</p>
+                <a href="#" class="btn btn-primary">View</a>
+              </div>
+            </div>
+          </div>
+      
+          <!-- Second Column, First Row -->
+          <div class="col-md-6 mb-3">
+            <div class="card w-100">
+              <div class="card-body">
+                <h5 class="card-title d-flex justify-content-between align-items-center">Inventory Status
+                  <img src="../static/svg/chart.svg" class="rep-img" alt="Total Sales">
+                </h5>
+                <p class="card-text">Total:</p>
+                <p>0</p>
+                <a href="#" class="btn btn-primary">View</a>
+              </div>
+            </div>
+          </div>
+      
+          <!-- First Column, Second Row -->
+          <div class="col-md-6 mb-3">
+            <div class="card w-100">
+              <div class="card-body">
+                <h5 class="card-title d-flex justify-content-between align-items-center">Expired Products
+                  <img src="../static/svg/expired.svg" class="rep-img" alt="Total Sales">
+                </h5>
+                <p class="card-text">Total:</p>
+                <p>0</p>
+                <a href="#" class="btn btn-primary">View</a>
+              </div>
+            </div>
+          </div>
+      
+          <!-- Second Column, Second Row -->
+          <div class="col-md-6 mb-3">
+            <div class="card w-100">
+              <div class="card-body">
+                <h5 class="card-title d-flex justify-content-between align-items-center">Stock Shortage
+                  <img src="../static/svg/short.svg" class="rep-img" alt="Total Sales">
+                </h5>
+                <p class="card-text">Total:</p>
+                <p>0</p>
+                <a href="#" class="btn btn-primary">View</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      
+
+    </main>
+
+  </div>
+</div>
+
+
+
+{% include "footer.html" %}

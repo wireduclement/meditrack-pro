@@ -1,0 +1,95 @@
+body {
+    background-color: #f8f9fa;
+    font-family: Arial, sans-serif;
+}
+
+.form-signin {
+    max-width: 500px;
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.form-floating .form-control {
+    margin-bottom: 15px;
+    border-radius: 5px;
+}
+
+h1 {
+    font-weight: bold;
+    color: #333333;
+}
+
+.btn-primary {
+    background-color: #7BB8D7;
+    border: none;
+}
+
+.btn-primary:hover {
+    background-color: rgb(154, 166, 178);
+}
+
+.text-body-secondary {
+    font-size: 0.9rem;
+}
+
+.nav-link.active {
+    background-color: #9AA6B2;
+    color: white !important;
+    font-weight: bold;
+}
+
+.spaced-img {
+    margin-left: 10px;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.justify-content-between {
+    justify-content: space-between;
+}
+
+.align-items-center {
+    align-items: center;
+}
+
+.rep-img {
+    width: 24px;
+    height: 24px;
+}
+
+.settings-sidebar {
+    height: 100%;
+}
+
+.settings-content {
+    overflow-y: auto;
+}
+
+.vh-100 {
+    height: 100vh;
+}
+
+h2 {
+    text-align: left;
+    color: #333333;
+}
+
+.user-field {
+    margin-bottom: 15px;
+}
+
+.user-label {
+    font-size: 14px;
+    color: #777;
+}
+
+.user-value {
+    padding: 10px;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+    font-size: 16px;
+}

@@ -1,0 +1,59 @@
+<div class="sidebar border border-right col-md-3 col-lg-2 p-0 bg-body-tertiary">
+  <div class="offcanvas-md offcanvas-end bg-body-tertiary" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="sidebarMenuLabel">Company name</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebarMenu" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body d-md-flex flex-column p-0 pt-lg-3 overflow-y-auto vh-100">
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% else %}text-black{% endif %}">
+            <img src="../static/svg/speedometer.svg">
+            Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('products') }}" class="nav-link {% if request.endpoint == 'products' %}active{% else %}text-black{% endif %}">
+            <img src="../static/svg/products.svg">
+            Inventory
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('orders') }}" class="nav-link {% if request.endpoint == 'orders' %}active{% else %}text-black{% endif %}">
+            <img src="../static/svg/orders.svg">
+            Orders
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('sales') }}" class="nav-link {% if request.endpoint == 'sales' %}active{% else %}text-black{% endif %}">
+            <img src="../static/svg/sales.svg">
+            Sales
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('reports') }}" class="nav-link {% if request.endpoint == 'reports' %}active{% else %}text-black{% endif %}">
+            <img src="../static/svg/report.svg">
+            Reports
+          </a>
+        </li>
+
+        <hr class="my-3">
+
+        <ul class="nav flex-column mb-auto">
+          <li class="nav-item">
+            <a href="{{ url_for('settings') }}" class="nav-link {% if request.endpoint == 'settings' %}active{% else %}text-black{% endif %}">
+              <img src="../static/svg/settings.svg">
+              Settings
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ url_for('logout') }}" class="nav-link {% if request.endpoint == 'logout' %}active{% else %}text-black{% endif %}">
+              <img src="../static/svg/signout.svg">
+              Sign out
+            </a>
+          </li>
+        </ul>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,74 @@
+{% include "header.html" %}
+
+<div class="container-fluid">
+  <div class="row">
+    {% include "sidebar.html" %}
+
+    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+      <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Inventory</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+          <div class="btn-group me-2">
+            <a>{{ name }} - {{ role }}</a>
+            <img src="../static/svg/user.svg" class="spaced-img">
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5>Product List</h5>
+        <a type="button" class="btn btn-primary" href="{{ url_for('add')}}">Add New Product</a>
+      </div>
+
+      <!-- Flash message for caution -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div>
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}" role="alert">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Brand</th>
+            <th scope="col">Category</th>
+            <th scope="col">Price (₵)</th>
+            <th scope="col">Quantity</th>
+            <th scope="col">Expiry Date</th>
+            <th scope="col">Manufacturer</th>
+            <th scope="col"></th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for product in products %}
+          <tr>
+              <td>{{ product[1] }}</td>
+              <td>{{ product[2] }}</td>
+              <td>{{ product[3] }}</td>
+              <td>{{ product[4] }}</td>
+              <td>{{ product[5] }}</td>
+              <td>{{ product[6] }}</td>
+              <td>{{ product[7] }}</td>
+              <td>
+                <a href="{{ url_for('edit_product', product_id=product[0] )}}" class="btn btn-sm btn-primary">Edit</a>
+              </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </main>
+    
+  </div>
+</div>
+
+
+
+{% include "footer.html" %}

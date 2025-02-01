@@ -1,0 +1,49 @@
+{% include "header.html" %}
+{% from 'bootstrap5/form.html' import render_form %}
+
+<div class="container-fluid">
+  <div class="row">
+    {% include "sidebar.html" %}
+
+    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+      <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Add New Products</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+          <div class="btn-group me-2">
+            <a>{{ name }} - {{ role }}</a>
+            <img src="../static/svg/user.svg" class="spaced-img">
+          </div>
+        </div>
+      </div>
+    
+      <div class="container">
+        <div class="row justify-content-left">
+          <div class="col-md-10">
+            <!-- Flash message for caution -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                <div>
+                  {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" role="alert">
+                      {{ message }}
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endwith %}
+            
+            {{ render_form(form, novalidate=True) }}
+          </div>
+        </div>
+
+        <hr>
+        <p><a href="{{ url_for('products') }}">Return to previous page</a></p>
+      </div>
+    </main>
+    
+  </div>
+</div>
+
+
+
+{% include "footer.html" %}
