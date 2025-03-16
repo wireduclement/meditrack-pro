@@ -15,11 +15,6 @@
         </div>
       </div>
 
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5>Product List</h5>
-        <a type="button" class="btn btn-primary" href="{{ url_for('add')}}">Add New Product</a>
-      </div>
-
       <!-- Flash message for caution -->
       {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -33,6 +28,17 @@
       {% endif %}
     {% endwith %}
 
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5>Product List</h5>
+        <a type="button" id="add-btn" class="btn btn-primary" href="{{ url_for('add')}}">Add New Product</a>
+      </div>
+
+      <br>
+      <form method="GET" action="{{ url_for('products') }}" class="d-flex mb-3">
+        <input type="text" name="search" class="form-control me-2" placeholder="Search products..." value="{{ search_query }}">
+        <button type="submit" class="btn btn-primary">Search</button>
+      </form>
+
       <table class="table">
         <thead>
           <tr>
@@ -43,7 +49,7 @@
             <th scope="col">Quantity</th>
             <th scope="col">Expiry Date</th>
             <th scope="col">Manufacturer</th>
-            <th scope="col"></th>
+            <th scope="col">Action</th>
           </tr>
         </thead>
 
@@ -64,6 +70,11 @@
           {% endfor %}
         </tbody>
       </table>
+
+      {% if not products %}
+      <p class="text-danger">No products found.</p>
+      {% endif %}
+
     </main>
     
   </div>

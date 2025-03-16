@@ -95,6 +95,7 @@
               <tr>
                 <th scope="col">#</th>
                 <th scope="col">Name</th>
+                <th scope="col">Role</th>
                 <th scope="col">Action</th>
               </tr>
             </thead>
@@ -104,6 +105,7 @@
               <tr>
                 <td>{{ loop.index }}</td>
                 <td>{{ user[1] }}</td>
+                <td>{{ user[4] }}</td>
                 <td>
                   <a href="{{ url_for('view_user_info', user_id=user[0] )}}" class="btn btn-sm btn-dark">View</a>
                   <a href="{{ url_for('add_user_info', user_id=user[0] )}}" class="btn btn-sm btn-primary">Update</a>

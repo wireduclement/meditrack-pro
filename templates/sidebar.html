@@ -19,6 +19,12 @@
           </a>
         </li>
         <li class="nav-item">
+          <a href="{{ url_for('cart') }}" class="nav-link {% if request.endpoint == 'cart' %}active{% else %}text-black{% endif %}">
+            <img src="../static/svg/cart.svg">
+            Cart Options
+          </a>
+        </li>
+        <li class="nav-item">
           <a href="{{ url_for('orders') }}" class="nav-link {% if request.endpoint == 'orders' %}active{% else %}text-black{% endif %}">
             <img src="../static/svg/orders.svg">
             Orders

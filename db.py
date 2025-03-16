@@ -42,33 +42,31 @@ class Database:
         self.my_db.commit()
 
 
-    def read(self, table, clause=None, columns=None):
+    def read(self, table, clause=None, columns=None, like=False):
         if not columns:
             self.sql = f"SELECT * FROM {table}"
-            if clause and isinstance(clause, dict):
-                self.sql += " WHERE "
-                for key, val in clause.items():
-                    self.sql += f"{key}='{val}' AND "
-                self.sql = self.sql.rstrip("AND ")
-            elif clause and not isinstance(clause, dict):
-                raise TypeError(f"Expected a dictionary but found {type(clause)}")
         else:
             if isinstance(columns, list):
-                self.sql = f"SELECT "
-                for col in columns:
-                    self.sql += f"{col}, "
-                self.sql = self.sql.rstrip(", ")
-                self.sql += f" FROM {table}"
-                if clause and isinstance(clause, dict):
-                    self.sql += " WHERE "
-                    for key, val in clause.items():
-                        self.sql += f"{key}='{val}' AND "
-                    self.sql = self.sql.rstrip("AND ")
-                elif clause and not isinstance(clause, dict):
-                    raise TypeError(f"Expected a dictionary but found {type(clause)}")
+                self.sql = f"SELECT {', '.join(columns)} FROM {table}"
             else:
                 raise TypeError(f"Expected a list but found {type(columns)}")
-        self.cursor.execute(self.sql)
+
+        values = []
+        
+        if clause and isinstance(clause, dict):
+            self.sql += " WHERE "
+            conditions = []
+            for key, val in clause.items():
+                if like:  # Enable LIKE queries
+                    conditions.append(f"{key} LIKE %s")
+                    values.append(f"%{val}%")  # Add wildcard for partial matches
+                else:
+                    conditions.append(f"{key} = %s")
+                    values.append(val)  
+
+            self.sql += " AND ".join(conditions)
+
+        self.cursor.execute(self.sql, tuple(values))
         results = self.cursor.fetchall()
         return results
 
@@ -90,6 +88,12 @@ class Database:
         values = list(update.values()) + list(clause.values())
         self.cursor.execute(self.sql, values)
         self.my_db.commit()
+
+
+    def count_rows(self, table):
+        self.cursor.execute(f"SELECT COUNT(*) FROM {table}")
+        result = self.cursor.fetchone()
+        return result[0]
 
      
     def close(self):

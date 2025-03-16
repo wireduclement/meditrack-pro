@@ -3,8 +3,8 @@ from functools import wraps
 from flask_bootstrap import Bootstrap5
 from flask.views import MethodView
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, SelectField, DateField, EmailField, PasswordField
-from wtforms.validators import DataRequired, EqualTo, Regexp, Length
+from wtforms import StringField, SubmitField, SelectField, DateField, EmailField, PasswordField, RadioField
+from wtforms.validators import DataRequired, EqualTo, Regexp, Length, Optional
 from werkzeug.security import generate_password_hash, check_password_hash
 from db import Database
 from dotenv import load_dotenv
@@ -34,17 +34,17 @@ class ProductForm(FlaskForm):
 
 class UsersForm(FlaskForm):
     user_name = StringField("Name", validators=[DataRequired()])
-    user_email = EmailField("Email", validators=[DataRequired()])
+    user_email = EmailField("Email", validators=[DataRequired()],  render_kw={"placeholder": "example@example.com"})
     user_pwd = PasswordField("Password", validators=[DataRequired(), Length(min=7, message="Password must be at least 7 characters long")])
     user_c_pwd = PasswordField("Confirm Password", validators=[DataRequired(), EqualTo('user_pwd', message="Passwords must match")])
     user_role = SelectField("Role", choices=[("Admin", "Admin"), ("Pharmacist", "Pharmacist"), ("Cashier", "Cashier")], validators=[DataRequired()])
-    user_contact = StringField("Contact Info", validators=[DataRequired(), Regexp(r'^\+?\d{10,15}$', message="Invalid phone number format.")])
+    user_contact = StringField("Contact Info", validators=[DataRequired(), Regexp(r'^\+?\d{10,15}$', message="Invalid phone number format.")], render_kw={"placeholder": "(000) 000-0000"})
     submit = SubmitField("Register")
 
 
 class EditUserForm(FlaskForm):
     user_name = StringField("Name", validators=[DataRequired()])
-    user_email = EmailField("Email", validators=[DataRequired()])
+    user_email = EmailField("Email", validators=[DataRequired()],  render_kw={"placeholder": "example@example.com"})
     user_contact = StringField("Contact Info", validators=[DataRequired(), Regexp(r'^\+?\d{10,15}$', message="Invalid phone number format.")])
     submit = SubmitField("Update")
 
@@ -54,11 +54,22 @@ class UserInfoForm(FlaskForm):
     ui_lname = StringField("Last Name", validators=[DataRequired()])
     ui_mname = StringField("Middle Name", validators=[DataRequired()])
     ui_dob = DateField("Date Of Birth", format='%Y-%m-%d', validators=[DataRequired()])
-    ui_email = EmailField("Email", validators=[DataRequired()])
+    ui_email = EmailField("Email", validators=[DataRequired()], render_kw={"placeholder": "example@example.com"})
     ui_gender = SelectField("Gender", choices=[("Male", "Male"), ("Female", "Female")], validators=[DataRequired()])
     ui_home_address = StringField("Home Address", validators=[DataRequired()])
     ui_marital_status = SelectField("Marital Status", choices=[("Single", "Single"), ("Married", "Married"), ("Divorced", "Divorced"), ("Separated", "Separated")], validators=[DataRequired()])
     submit = SubmitField("Add Information")
+
+
+class CustomerForm(FlaskForm):
+    c_fullname = StringField("Full Name", validators=[DataRequired()])
+    c_phone = StringField("Contact Info", validators=[DataRequired(), Regexp(r'^\+?\d{10,15}$', message="Invalid phone number format.")], render_kw={"placeholder": "(000) 000-0000"})
+    c_email = EmailField("Email", validators=[Optional()], render_kw={"placeholder": "example@example.com"})
+    c_address = StringField("Home Address (optional)", validators=[Optional()])
+
+
+class PaymentForm(FlaskForm): 
+    payment_method = RadioField("Preferred Payment Method", choices=[("value","Insurance"), ("value_one","Cash"), ("value_two","Mobile Money"), ("value_three", "Bank Transfer")])
 
 
 def login_required(f):
@@ -77,7 +88,7 @@ def role_required(roles):
         def decorated_function(*args, **kwargs):
             if session.get("role") not in roles:
                 flash("You do not have permission to access that page.", "danger")
-                return redirect(url_for("dashboard"))
+                return redirect(request.referrer or url_for("dashboard"))
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -127,10 +138,11 @@ class DashboardView(MethodView):
     decorators = [login_required]
 
     def get(self):
+        total_products = db.count_rows("products")
         if not session.get('logged_in'):
             return redirect(url_for("login"))
         name, role = get_name_role()
-        return render_template("dashboard.html", name=name, role=role)
+        return render_template("dashboard.html", name=name, role=role, total_products=total_products)
 
 
 class AddView(MethodView):
@@ -199,22 +211,109 @@ def edit_product(product_id):
     return render_template("edit_product.html", form=form, name=name, role=role)
 
 
-@app.route("/orders")
+@app.route("/orders", methods=["GET", "POST"])
 @login_required
 @role_required(["Admin", "Cashier"])
 def orders():
     name, role = get_name_role()
-    return render_template("orders.html", name=name, role=role)
+    form = CustomerForm()
+    payment_form = PaymentForm()
+
+    if form.validate_on_submit():
+        columns = ["fullname", "contact_info", "email", "address"]
+        values = [
+            form.c_fullname.data,
+            form.c_phone,
+            form.c_email,
+            form.c_address
+        ]
+        db.insert("customers", columns, values)
+        flash("Product added successfully.", "info")
+        return redirect(url_for("orders"))
+    
+    if payment_form.validate_on_submit():
+        columns = ["user_id", "total_amount", "sale_date", "payment_method"]
+        values = [
+            payment_form.payment_method.data
+        ]
+        db.insert("sales", columns, values)
+    return render_template("orders.html", name=name, role=role, form=form, payment_form=payment_form)
 
 
 @app.route("/products")
 @login_required
 @role_required(["Admin", "Pharmacist"])
 def products():
-    products = db.read("products")
+    search_query = request.args.get("search", "").strip()
     name, role = get_name_role()
-    return render_template("products.html", products=products, name=name, role=role)
+    if search_query:
+        products = db.read("products", {"name": f"%{search_query}%"}, like=True)
+    else:
+        products = db.read("products")
+    return render_template("products.html", products=products, name=name, role=role, search_query=search_query)
 
+
+@app.route("/cart")
+@login_required
+@role_required(["Admin", "Pharmacist"])
+def cart():
+    name, role = get_name_role()
+
+    cart_items = session.get("cart", [])
+    search_query = request.args.get("search", "").strip()
+    product_details = None
+
+    if search_query:
+        products = db.read("products", {"name": f"%{search_query}%"}, like=True)
+
+        if products:
+            product = products[0]
+            product_details = {
+                "name": product[0],
+                "price": float[product[4]],
+                "manufacturer": products[6],
+                "expiry_date": products[5]
+            }
+
+    product_names = db.read("products", columns=["name"])
+    product_names = [p[0] for p in product_names]
+
+    return render_template(
+        "cart.html", 
+        product_details=product_details, 
+        product_names=product_names, 
+        cart_items=cart_items, 
+        name=name, 
+        role=role, 
+        search_query=search_query
+        )
+
+
+@app.route("/add_to_cart", methods=["POST"])
+@login_required
+def add_to_cart():
+    product_name = request.form.get("product_name")
+    quantity = int(request.form.get("quantity", 1))
+
+    if not product_name:
+        flash(" Please select a product", "error")
+        return redirect(url_for("cart"))
+    
+    product = db.read("products", {"name": product_name})
+    if not product:
+        flash("Product not found", "error")
+        return redirect(url_for("cart"))
+    
+    price = float(product[0][4])
+    total_price = price * quantity
+
+    # Add to session cart
+    cart_items = session.get("cart", [])
+    cart_items.append({"name": product_name, "price": price, "quantity": quantity, "total_price": total_price})
+    session["cart"] = cart_items
+    flash("Item added to cart successfully", "success")
+
+    return redirect(url_for("cart")) 
 
 @app.route("/sales")
 @login_required
