@@ -211,35 +211,6 @@ def edit_product(product_id):
     return render_template("edit_product.html", form=form, name=name, role=role)
 
 
-@app.route("/orders", methods=["GET", "POST"])
-@login_required
-@role_required(["Admin", "Cashier"])
-def orders():
-    name, role = get_name_role()
-    form = CustomerForm()
-    payment_form = PaymentForm()
-
-    if form.validate_on_submit():
-        columns = ["fullname", "contact_info", "email", "address"]
-        values = [
-            form.c_fullname.data,
-            form.c_phone,
-            form.c_email,
-            form.c_address
-        ]
-        db.insert("customers", columns, values)
-        flash("Product added successfully.", "info")
-        return redirect(url_for("orders"))
-    
-    if payment_form.validate_on_submit():
-        columns = ["user_id", "total_amount", "sale_date", "payment_method"]
-        values = [
-            payment_form.payment_method.data
-        ]
-        db.insert("sales", columns, values)
-    return render_template("orders.html", name=name, role=role, form=form, payment_form=payment_form)
-
-
 @app.route("/products")
 @login_required
 @role_required(["Admin", "Pharmacist"])
@@ -253,67 +224,113 @@ def products():
     return render_template("products.html", products=products, name=name, role=role, search_query=search_query)
 
 
-@app.route("/cart")
+class OrdersView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Cashier"])]
+
+    def get(self):
+        name, role = get_name_role()
+        form = CustomerForm()
+        payment_form = PaymentForm()
+        return render_template("orders.html", name=name, role=role, form=form, payment_form=payment_form)
+
+    def post(self):
+        name, role = get_name_role()
+        form = CustomerForm()
+        payment_form = PaymentForm()
+
+        if form.validate_on_submit():
+            columns = ["fullname", "contact_info", "email", "address"]
+            values = [
+                form.c_fullname.data,
+                form.c_phone.data,
+                form.c_email.data,
+                form.c_address.data
+            ]
+            db.insert("customers", columns, values)
+            flash("Customer added successfully.", "info")
+            return redirect(url_for("orders"))
+        
+        if payment_form.validate_on_submit():
+            columns = ["user_id", "total_amount", "sale_date", "payment_method"]
+            values = [
+                payment_form.payment_method.data
+            ]
+            db.insert("sales", columns, values)
+        return render_template("orders.html", name=name, role=role, form=form, payment_form=payment_form)
+
+
+class CartView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Pharmacist"])]
+
+    def get(self):
+        name, role = get_name_role()
+        cart_items = session.get("cart", [])
+        search_query = request.args.get("search", "").strip()
+        product_details = None
+
+        if search_query:
+            products = db.read("products", {"name": f"%{search_query}%"}, like=True)
+
+            if products:
+                product = products[0]
+                product_details = {
+                    "name": product[0],
+                    "price": float(product[4]),
+                    "manufacturer": product[6],
+                    "expiry_date": product[5]
+                }
+
+        product_names = db.read("products", columns=["name"])
+        product_names = [p[0] for p in product_names] if product_names else []
+
+        return render_template(
+            "cart.html", 
+            product_details=product_details, 
+            product_names=product_names, 
+            cart_items=cart_items, 
+            name=name, 
+            role=role, 
+            search_query=search_query
+            )
+
+
+class AddToCartView(MethodView):
+    decorators = [login_required]
+
+    def post(self):
+        product_name = request.form.get("product_name")
+        quantity = int(request.form.get("quantity", 1))
+
+        if not product_name:
+            flash("Please select a product", "danger")
+            return redirect(url_for("cart"))
+        
+        product = db.read("products", {"name": product_name})
+        if not product:
+            flash("Product not found", "danger")
+            return redirect(url_for("cart"))
+        
+        price = float(product[0][4])
+        total_price = price * quantity
+
+        # Add to session cart
+        cart_items = session.get("cart", [])
+        cart_items.append({"name": product_name, "price": price, "quantity": quantity, "total_price": total_price})
+        session["cart"] = cart_items
+        flash("Item added to cart successfully", "success")
+
+        return redirect(url_for("cart"))
+
+
+@app.route("/remove_from_cart", methods=["POST"])
 @login_required
-@role_required(["Admin", "Pharmacist"])
-def cart():
-    name, role = get_name_role()
-
-    cart_items = session.get("cart", [])
-    search_query = request.args.get("search", "").strip()
-    product_details = None
-
-    if search_query:
-        products = db.read("products", {"name": f"%{search_query}%"}, like=True)
-
-        if products:
-            product = products[0]
-            product_details = {
-                "name": product[0],
-                "price": float[product[4]],
-                "manufacturer": products[6],
-                "expiry_date": products[5]
-            }
-
-    product_names = db.read("products", columns=["name"])
-    product_names = [p[0] for p in product_names]
-
-    return render_template(
-        "cart.html", 
-        product_details=product_details, 
-        product_names=product_names, 
-        cart_items=cart_items, 
-        name=name, 
-        role=role, 
-        search_query=search_query
-        )
-
-
-@app.route("/add_to_cart", methods=["POST"])
-@login_required
-def add_to_cart():
+def remove_from_cart():
     product_name = request.form.get("product_name")
-    quantity = int(request.form.get("quantity", 1))
-
-    if not product_name:
-        flash(" Please select a product", "error")
-        return redirect(url_for("cart"))
-    
-    product = db.read("products", {"name": product_name})
-    if not product:
-        flash("Product not found", "error")
-        return redirect(url_for("cart"))
-    
-    price = float(product[0][4])
-    total_price = price * quantity
-
-    # Add to session cart
     cart_items = session.get("cart", [])
-    cart_items.append({"name": product_name, "price": price, "quantity": quantity, "total_price": total_price})
+    cart_items = [item for item in cart_items if item["name"] != product_name]
     session["cart"] = cart_items
-    flash("Item added to cart successfully", "success")
+    return redirect(url_for("cart"))
 
-    return redirect(url_for("cart")) 
 
 @app.route("/sales")
 @login_required
@@ -532,10 +549,12 @@ def logout():
 
 
 # Class based views registering
-app.add_url_rule("/", view_func=LoginView.as_view("login"), methods=["GET", "POST"])
+app.add_url_rule("/", view_func=LoginView.as_view("login"))
 app.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard"))
-app.add_url_rule("/add", view_func=AddView.as_view("add"), methods=["GET", "POST"])
-
+app.add_url_rule("/add", view_func=AddView.as_view("add"))
+app.add_url_rule("/orders", view_func=OrdersView.as_view("orders"))
+app.add_url_rule("/cart", view_func=CartView.as_view("cart"))
+app.add_url_rule("/add_to_cart", view_func=AddToCartView.as_view("add_to_cart"))
 
 
 

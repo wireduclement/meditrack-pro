@@ -64,6 +64,7 @@
                   <th scope="col">Price (₵)</th>
                   <th scope="col">Purchase Qty</th>
                   <th scope="col">Total Price (₵)</th>
+                  <th scope="col"></th>
               </tr>
           </thead>
           <tbody>
@@ -73,10 +74,22 @@
                   <td>¢{{ item.price }}</td>
                   <td>{{ item.quantity }}</td>
                   <td>¢{{ item.total_price }}</td>
+                  <td>
+                    <form method="POST" action="{{ url_for('remove_from_cart') }}">
+                        <input type="hidden" name="product_name" value="{{ item.name }}">
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <img src="{{ url_for('static', filename='svg/trash.svg') }}" alt="Delete" width="16" height="16">
+                        </button>
+                    </form>
+                  </td>
+                
               </tr>
               {% endfor %}
           </tbody>
       </table>
+      <div class="text-end">
+        <a href="{{ url_for('orders') }}" class="btn btn-primary" style="width: 25%;">Checkout</a>
+      </div>
       
 
     </main>
