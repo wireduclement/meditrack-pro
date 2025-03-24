@@ -173,14 +173,14 @@ class AddView(MethodView):
         return render_template("add.html", form=form)
     
 
-@app.route("/edit-product/<int:product_id>", methods=["GET", "POST"])
-@login_required
-@role_required(["Admin", "Pharmacist"])
-def edit_product(product_id):
-    name, role = get_name_role()
-    form = ProductForm()
-    if request.method == "GET":
+class EditProductView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Pharmacist"])]
+
+    def get(self, product_id):
+        name, role = get_name_role()
+        form = ProductForm()
         product = db.read("products", {"product_id": product_id})
+
         if product:
             form.pd_name.data = product[0][1]
             form.pd_brand.data = product[0][2]
@@ -192,36 +192,42 @@ def edit_product(product_id):
         else:
             flash("Product not found.", "danger")
             return redirect(url_for("products"))
-    elif form.validate_on_submit():
-        db.update(
-            "products", 
-            {
-            "name": form.pd_name.data,
-            "brand": form.pd_brand.data,
-            "category": form.pd_category.data,
-            "price": form.pd_price.data,
-            "quantity_in_stock": form.pd_quantity.data,
-            "expiry_date": form.pd_expiry_date.data.strftime('%Y-%m-%d'),
-            "manufacturer": form.pd_manufacturer.data
-            }, 
-            {"product_id": product_id}
-        )
-        flash("Product updated successfully.", "success")
-        return redirect(url_for("products"))
-    return render_template("edit_product.html", form=form, name=name, role=role)
+        return render_template("edit_product.html", form=form, name=name, role=role)
+    
+    def post(self, product_id):
+        name, role = get_name_role()
+        form = ProductForm()
+
+        if form.validate_on_submit():
+            db.update(
+                "products", 
+                {
+                "name": form.pd_name.data,
+                "brand": form.pd_brand.data,
+                "category": form.pd_category.data,
+                "price": form.pd_price.data,
+                "quantity_in_stock": form.pd_quantity.data,
+                "expiry_date": form.pd_expiry_date.data.strftime('%Y-%m-%d'),
+                "manufacturer": form.pd_manufacturer.data
+                }, 
+                {"product_id": product_id}
+            )
+            flash("Product updated successfully.", "success")
+            return redirect(url_for("products"))
+        return render_template("edit_product.html", form=form, name=name, role=role)
 
 
-@app.route("/products")
-@login_required
-@role_required(["Admin", "Pharmacist"])
-def products():
-    search_query = request.args.get("search", "").strip()
-    name, role = get_name_role()
-    if search_query:
-        products = db.read("products", {"name": f"%{search_query}%"}, like=True)
-    else:
-        products = db.read("products")
-    return render_template("products.html", products=products, name=name, role=role, search_query=search_query)
+class ProductView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Pharmacist"])]
+
+    def get(self):
+        search_query = request.args.get("search", "").strip()
+        name, role = get_name_role()
+        if search_query:
+            products = db.read("products", {"name": f"%{search_query}%"}, like=True)
+        else:
+            products = db.read("products")
+        return render_template("products.html", products=products, name=name, role=role, search_query=search_query)
 
 
 class OrdersView(MethodView):
@@ -322,14 +328,15 @@ class AddToCartView(MethodView):
         return redirect(url_for("cart"))
 
 
-@app.route("/remove_from_cart", methods=["POST"])
-@login_required
-def remove_from_cart():
-    product_name = request.form.get("product_name")
-    cart_items = session.get("cart", [])
-    cart_items = [item for item in cart_items if item["name"] != product_name]
-    session["cart"] = cart_items
-    return redirect(url_for("cart"))
+class RemoveFromCart(MethodView):
+    decorators = [login_required]
+
+    def post(self):
+        product_name = request.form.get("product_name")
+        cart_items = session.get("cart", [])
+        cart_items = [item for item in cart_items if item["name"] != product_name]
+        session["cart"] = cart_items
+        return redirect(url_for("cart"))   
 
 
 @app.route("/sales")
@@ -347,50 +354,52 @@ def reports():
     return render_template("reports.html", name=name, role=role)
 
 
-@app.route("/settings")
-@login_required
-@role_required(["Admin"])
-def settings():
-    return redirect(url_for("edit_users"))
+class SettingsView(MethodView):
+    decorators = [login_required, role_required(["Admin"])]
 
-
-@app.route("/settings/edit-users")
-@login_required
-@role_required(["Admin"])
-def edit_users():
-    name, role = get_name_role()
-    users = db.read("users")
-    return render_template("settings.html", active_section="edit_users", users=users, name=name, role=role)
-
-
-@app.route("/edit-user/<int:user_id>", methods=["GET", "POST"])
-@login_required
-@role_required(["Admin"])
-def edit_user(user_id):
-    name, role = get_name_role()
-    form = EditUserForm()
-    if request.method == "GET":
-        user = db.read("users", {"user_id": user_id})
-        if user:
-            form.user_name.data = user[0][1]
-            form.user_email.data = user[0][2]
-            form.user_contact.data = user[0][5]
-        else:
-            flash("User not found.", "danger")
-            return redirect(url_for("edit_users"))
-    elif form.validate_on_submit():
-        db.update(
-            "users", 
-            {
-            "name": form.user_name.data,
-            "email": form.user_email.data,
-            "contact_info": form.user_contact.data
-            }, 
-            {"user_id": user_id}
-        )
-        flash("User updated successfully.", "success")
+    def get(self):
         return redirect(url_for("edit_users"))
-    return render_template("edit_user.html", form=form, name=name, role=role)
+
+
+class EditUsersView(MethodView):
+    decorators = [login_required, role_required(["Admin"])]
+
+    def get(self, user_id=None):
+        name, role = get_name_role()
+
+        if user_id:
+            form = EditUserForm()
+            user = db.read("users", {"user_id": user_id})
+
+            if user:
+                form.user_name.data = user[0][1]
+                form.user_email.data = user[0][2]
+                form.user_contact.data = user[0][5]
+            else:
+                flash("User not found.", "danger")
+                return redirect(url_for("edit_users"))
+            return render_template("edit_user.html", form=form, name=name, role=role)
+
+        else:
+            users = db.read("users")
+            return render_template("settings.html", active_section="edit_users", users=users, name=name, role=role)
+        
+    def post(self, user_id):
+        form = EditUserForm()
+
+        if form.validate_on_submit():
+            db.update(
+                "users", 
+                {
+                    "name": form.user_name.data,
+                    "email": form.user_email.data,
+                    "contact_info": form.user_contact.data
+                }, 
+                {"user_id": user_id}
+            )
+            flash("User updated successfully.", "success")
+            return redirect(url_for("edit_users"))
+        return render_template("edit_user.html", form=form)
 
 
 @app.route("/delete-user/<int:user_id>")
@@ -410,127 +419,146 @@ def delete_user(user_id):
     return render_template("settings.html", active_section="edit_users", form=form, users=users, name=name, role=role)
 
 
-@app.route("/settings/setup-profile", methods=["GET", "POST"])
-@login_required
-@role_required(["Admin"])
-def setup_profile():
-    name, role = get_name_role()
-    form = UsersForm()
-    role = form.user_role.data if form.user_role.data in ["Admin", "Pharmacist", "Cashier"] else "Admin"
-    if form.validate_on_submit():
-        existing_user = db.read("users", {"email": form.user_email.data})
-        if existing_user:
-            flash("This email address is already in use. Please choose a different email", "danger")
-        else:
-            hashed_password = generate_password_hash(form.user_pwd.data, method='pbkdf2:sha256', salt_length=16)
-            columns = ["name", "email", "password", "role", "contact_info"]
-            values = [
-                form.user_name.data,
-                form.user_email.data,
-                hashed_password,
-                role,
-                form.user_contact.data
-            ]
-            db.insert("users", columns, values)
 
-            flash("User added successfully.", "info")
-            return redirect(url_for("settings"))
-    return render_template("settings.html", active_section="setup_profile", form=form, name=name, role=role)
+class SetupProfileView(MethodView):
+    decorators = [login_required, role_required(["Admin"])]
 
-
-@app.route("/settings/user_info", methods=["GET", "POST"])
-@login_required
-@role_required(["Admin"])
-def user_info():
-    name, role = get_name_role()
-    users = db.read("users")
-    return render_template("settings.html", active_section="user_info", name=name, role=role, users=users)
-
-
-@app.route("/view_user_info/<int:user_id>", methods=["GET"])
-@login_required
-@role_required(["Admin"])
-def view_user_info(user_id):
-    name, role = get_name_role()
-    user_info = db.read("user_info", {"user_id": user_id})
-    if not user_info:
-        flash("User information not found.", "danger")
-        return redirect(url_for("user_info"))
+    def get(self):
+        name, role = get_name_role()
+        form = UsersForm()
+        return render_template("settings.html", active_section="setup_profile", form=form, name=name, role=role)
     
-    user_data = user_info[0]
+    def post(self):
+        name, role = get_name_role()
+        form = UsersForm()
 
-    return render_template("view_user_info.html", user_data=user_data, name=name, role=role)
+        role = form.user_role.data if form.user_role.data in ["Admin", "Pharmacist", "Cashier"] else "Admin"
 
+        if form.validate_on_submit():
+            existing_user = db.read("users", {"email": form.user_email.data})
+            if existing_user:
+                flash("This email address is already in use. Please choose a different email", "danger")
+            else:
+                hashed_password = generate_password_hash(form.user_pwd.data, method='pbkdf2:sha256', salt_length=16)
+                columns = ["name", "email", "password", "role", "contact_info"]
+                values = [
+                    form.user_name.data,
+                    form.user_email.data,
+                    hashed_password,
+                    role,
+                    form.user_contact.data
+                ]
+                db.insert("users", columns, values)
 
-@app.route("/add_user_info/<int:user_id>", methods=["GET", "POST"])
-@login_required
-@role_required(["Admin"])
-def add_user_info(user_id):
-    form = UserInfoForm()
-    name, role = get_name_role()
-    user_info = db.read("user_info", {"user_id": user_id})
-    if user_info:
-        flash("You have already added your information. You can only edit it.", "warning")
-        return redirect(url_for("edit_user_info", user_id=user_id))
-    
-    if form.validate_on_submit():
-        columns = ["user_id","first_name", "last_name", "middle_name", "dob", "email_address", "gender", "home_address", "marital_status"]
-        values = [
-            user_id,
-            form.ui_fname.data,
-            form.ui_lname.data,
-            form.ui_mname.data,
-            form.ui_dob.data.strftime('%Y-%m-%d'),
-            form.ui_email.data,
-            form.ui_gender.data,
-            form.ui_home_address.data,
-            form.ui_marital_status.data
-        ]
-        db.insert("user_info", columns, values)
-
-        flash("User information added successfully.", "info")
-        return redirect(url_for("user_info"))
-    return render_template("add_user_info.html", form=form, user_id=user_id, name=name, role=role)
+                flash("User added successfully.", "info")
+                return redirect(url_for("settings"))
+        return render_template("settings.html", active_section="setup_profile", form=form, name=name, role=role)
 
 
-@app.route("/edit_user_info/<int:user_id>", methods=["GET", "POST"])
-@login_required
-@role_required(["Admin"])
-def edit_user_info(user_id):
-    name, role = get_name_role()
-    form = UserInfoForm()
-    if request.method == "GET":
-        users_info = db.read("user_info", {"user_id": user_id})
-        if users_info:
-            form.ui_fname.data = users_info[0][2]
-            form.ui_lname.data = users_info[0][3]
-            form.ui_mname.data = users_info[0][4]
-            form.ui_dob.data = users_info[0][5]
-            form.ui_email.data = users_info[0][6]
-            form.ui_gender.data = users_info[0][7]
-            form.ui_home_address.data = users_info[0][8]
-            form.ui_marital_status.data = users_info[0][9]
-        else:
-            flash("User information not found! You can add it by clicking on the update button.", "danger")
+class UserInfoView(MethodView):
+    decorators = [login_required, role_required(["Admin"])]
+
+    def get(self):
+        name, role = get_name_role()
+        users = db.read("users")
+        return render_template("settings.html", active_section="user_info", name=name, role=role, users=users)
+
+
+class SingleInfoView(MethodView):
+    decorators = [login_required, role_required(["Admin"])]
+
+    def get(self, user_id):
+        name, role = get_name_role()
+        user_info = db.read("user_info", {"user_id": user_id})
+        if not user_info:
+            flash("User information not found.", "danger")
             return redirect(url_for("user_info"))
-    elif form.validate_on_submit():
-        db.update(
-            "user_info", 
-            {
-            "first_name": form.ui_fname.data,
-            "last_name": form.ui_lname.data,
-            "middle_name": form.ui_mname.data,
-            "dob": form.ui_dob.data.strftime('%Y-%m-%d'),
-            "email_address": form.ui_email.data,
-            "gender": form.ui_gender.data,
-            "home_address": form.ui_home_address.data,
-            "marital_status": form.ui_marital_status.data
-            }, 
-            {"user_id": user_id}
-        )
-        flash("User info updated successfully.", "success")
-        return redirect(url_for("user_info"))
-    return render_template("edit_user_info.html", form=form, name=name, role=role)
+        
+        user_data = user_info[0]
+
+        return render_template("view_user_info.html", user_data=user_data, name=name, role=role)
+
+
+class AddUserInfoView(MethodView):
+    decorators = [login_required, role_required(["Admin"])]
+
+    def get(self, user_id):
+        form = UserInfoForm()
+        name, role = get_name_role()
+        user_info = db.read("user_info", {"user_id": user_id})
+        if user_info:
+            flash("You have already added your information. You can only edit it.", "warning")
+            return redirect(url_for("edit_user_info", user_id=user_id))
+        return render_template("add_user_info.html", form=form, user_id=user_id, name=name, role=role)
+    
+    def post(self, user_id):
+        form = UserInfoForm()
+        name, role = get_name_role()
+
+        if form.validate_on_submit():
+            columns = ["user_id","first_name", "last_name", "middle_name", "dob", "email_address", "gender", "home_address", "marital_status"]
+            values = [
+                user_id,
+                form.ui_fname.data,
+                form.ui_lname.data,
+                form.ui_mname.data,
+                form.ui_dob.data.strftime('%Y-%m-%d'),
+                form.ui_email.data,
+                form.ui_gender.data,
+                form.ui_home_address.data,
+                form.ui_marital_status.data
+            ]
+            db.insert("user_info", columns, values)
+
+            flash("User information added successfully.", "info")
+            return redirect(url_for("user_info"))
+        return render_template("add_user_info.html", form=form, user_id=user_id, name=name, role=role)
+
+
+class EditUserInfoView(MethodView):
+    decorators = [login_required, role_required(["Admin"])]
+
+    def get(self, user_id):
+        name, role = get_name_role()
+        form = UserInfoForm()
+        if request.method == "GET":
+            users_info = db.read("user_info", {"user_id": user_id})
+            if users_info:
+                form.ui_fname.data = users_info[0][2]
+                form.ui_lname.data = users_info[0][3]
+                form.ui_mname.data = users_info[0][4]
+                form.ui_dob.data = users_info[0][5]
+                form.ui_email.data = users_info[0][6]
+                form.ui_gender.data = users_info[0][7]
+                form.ui_home_address.data = users_info[0][8]
+                form.ui_marital_status.data = users_info[0][9]
+            else:
+                flash("User information not found! You can add it by clicking on the update button.", "danger")
+                return redirect(url_for("user_info"))
+            return render_template("edit_user_info.html", form=form, name=name, role=role)
+            
+    def post(self, user_id):
+        name, role = get_name_role()
+        form = UserInfoForm()
+
+        if form.validate_on_submit():
+            db.update(
+                "user_info", 
+                {
+                "first_name": form.ui_fname.data,
+                "last_name": form.ui_lname.data,
+                "middle_name": form.ui_mname.data,
+                "dob": form.ui_dob.data.strftime('%Y-%m-%d'),
+                "email_address": form.ui_email.data,
+                "gender": form.ui_gender.data,
+                "home_address": form.ui_home_address.data,
+                "marital_status": form.ui_marital_status.data
+                }, 
+                {"user_id": user_id}
+            )
+            flash("User info updated successfully.", "success")
+            return redirect(url_for("user_info"))
+        return render_template("edit_user_info.html", form=form, name=name, role=role)
 
 
 @app.route("/settings/update-profile", methods=["GET", "POST"])
@@ -552,9 +580,20 @@ def logout():
 app.add_url_rule("/", view_func=LoginView.as_view("login"))
 app.add_url_rule("/dashboard", view_func=DashboardView.as_view("dashboard"))
 app.add_url_rule("/add", view_func=AddView.as_view("add"))
+app.add_url_rule("/edit-product/<int:product_id>", view_func=EditProductView.as_view("edit_product"))
+app.add_url_rule("/products", view_func=ProductView.as_view("products"))
 app.add_url_rule("/orders", view_func=OrdersView.as_view("orders"))
 app.add_url_rule("/cart", view_func=CartView.as_view("cart"))
 app.add_url_rule("/add_to_cart", view_func=AddToCartView.as_view("add_to_cart"))
+app.add_url_rule("/remove_from_cart", view_func=RemoveFromCart.as_view("remove_from_cart"))
+app.add_url_rule("/settings", view_func=SettingsView.as_view("settings"))
+app.add_url_rule("/settings/edit-users", view_func=EditUsersView.as_view("edit_users"))
+app.add_url_rule("/edit-user/<int:user_id>", view_func=EditUsersView.as_view("edit_user"))
+app.add_url_rule("/settings/setup-profile", view_func=SetupProfileView.as_view("setup_profile"))
+app.add_url_rule("/settings/user_info", view_func=UserInfoView.as_view("user_info"))
+app.add_url_rule("/view_user_info/<int:user_id>", view_func=SingleInfoView.as_view("view_user_info"))
+app.add_url_rule("/add_user_info/<int:user_id>", view_func=AddUserInfoView.as_view("add_user_info"))
+app.add_url_rule("/edit_user_info/<int:user_id>", view_func=EditUserInfoView.as_view("edit_user_info"))
 
 
 
