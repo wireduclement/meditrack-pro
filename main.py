@@ -3,11 +3,13 @@ from functools import wraps
 from flask_bootstrap import Bootstrap5
 from flask.views import MethodView
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, SelectField, DateField, EmailField, PasswordField, RadioField
+from wtforms import StringField, SubmitField, SelectField, DateField, EmailField, PasswordField, RadioField, TextAreaField
 from wtforms.validators import DataRequired, EqualTo, Regexp, Length, Optional
 from werkzeug.security import generate_password_hash, check_password_hash
 from db import Database
 from dotenv import load_dotenv
+from pdf import generate_invoice_pdf
+from datetime import datetime
 import os
 
 
@@ -66,11 +68,9 @@ class CustomerForm(FlaskForm):
     c_phone = StringField("Contact Info", validators=[DataRequired(), Regexp(r'^\+?\d{10,15}$', message="Invalid phone number format.")], render_kw={"placeholder": "(000) 000-0000"})
     c_email = EmailField("Email", validators=[Optional()], render_kw={"placeholder": "example@example.com"})
     c_address = StringField("Home Address (optional)", validators=[Optional()])
-
-
-class PaymentForm(FlaskForm): 
-    payment_method = RadioField("Preferred Payment Method", choices=[("value","Insurance"), ("value_one","Cash"), ("value_two","Mobile Money"), ("value_three", "Bank Transfer")])
-
+    c_payment_method = RadioField("Preferred Payment Method", choices=[("insurance","Insurance"), ("cash","Cash"), ("mobile_money","Mobile Money"), ("bank_transfer", "Bank Transfer")], validators=[DataRequired()])
+    c_comments = TextAreaField("Additional Instruction or Comments", validators=[DataRequired()], render_kw={"class": "form-control", "rows": 5})
+    submit = SubmitField("Confirm Order")
 
 def login_required(f):
     @wraps(f)
@@ -231,38 +231,76 @@ class ProductView(MethodView):
 
 
 class OrdersView(MethodView):
-    decorators = [login_required, role_required(["Admin", "Cashier"])]
+    decorators = [login_required, role_required(["Admin", "Cashier", "Pharmacist"])]
 
     def get(self):
         name, role = get_name_role()
         form = CustomerForm()
-        payment_form = PaymentForm()
-        return render_template("orders.html", name=name, role=role, form=form, payment_form=payment_form)
+        cart_items = session.get("cart", [])
+        
+        if not cart_items:
+            flash("Your cart is empty. Please add items before proceeding.", "danger")
+            return redirect(url_for("cart"))
+
+        return render_template("orders.html", name=name, role=role, form=form, cart_items=cart_items)
 
     def post(self):
         name, role = get_name_role()
         form = CustomerForm()
-        payment_form = PaymentForm()
 
         if form.validate_on_submit():
-            columns = ["fullname", "contact_info", "email", "address"]
-            values = [
-                form.c_fullname.data,
-                form.c_phone.data,
-                form.c_email.data,
-                form.c_address.data
-            ]
-            db.insert("customers", columns, values)
-            flash("Customer added successfully.", "info")
-            return redirect(url_for("orders"))
-        
-        if payment_form.validate_on_submit():
-            columns = ["user_id", "total_amount", "sale_date", "payment_method"]
-            values = [
-                payment_form.payment_method.data
-            ]
-            db.insert("sales", columns, values)
-        return render_template("orders.html", name=name, role=role, form=form, payment_form=payment_form)
+            cart_items = session.get("cart", [])
+            if not cart_items:
+                flash("Your cart is empty. Please add items before proceeding.", "danger")
+                return redirect(url_for("cart"))
+
+            customer = {
+                "fullname": form.c_fullname.data,
+                "contact_info": form.c_phone.data,
+                "email": form.c_email.data,
+                "address": form.c_address.data,
+                "payment_method": form.c_payment_method.data,
+            }
+
+            invoice_number = f"INV{int(datetime.now().timestamp())}"
+            total = sum(item["total_price"] for item in cart_items)
+
+            user = db.read("users", {"name": name})
+            if not user:
+                flash("User not found")
+                return redirect(url_for("orders"))
+            user_id = user[0][0]
+
+            try:
+                pdf_path = generate_invoice_pdf(customer, cart_items, invoice_number)
+
+                db.insert("customers", list(customer.keys()), list(customer.values()))
+
+                columns = ["user_id", "attendant", "customer_name", "invoice_number", "date", "total"]
+                values = [
+                    user_id,
+                    name,
+                    form.c_fullname.data,
+                    invoice_number,
+                    datetime.now(),
+                    float(total)
+                ]
+
+                db.insert("sales", columns, values)
+
+                session.pop("cart", None)
+
+                flash("Order confirmed! Invoice generated.", "success")
+                return redirect(url_for("cart"))
+
+            except Exception as e:
+                import traceback
+                error_details = traceback.format_exc()
+                print(f"Full error details:\n{error_details}")
+                flash(f"Error processing order: {str(e)}", "danger")
+
+        cart_items = session.get("cart", [])
+        return render_template("orders.html", name=name, role=role, form=form, cart_items=cart_items, user_id=user_id)   
 
 
 class CartView(MethodView):
@@ -271,6 +309,7 @@ class CartView(MethodView):
     def get(self):
         name, role = get_name_role()
         cart_items = session.get("cart", [])
+        grand_total = sum(item["total_price"] for item in cart_items)
         search_query = request.args.get("search", "").strip()
         product_details = None
 
@@ -293,7 +332,8 @@ class CartView(MethodView):
             "cart.html", 
             product_details=product_details, 
             product_names=product_names, 
-            cart_items=cart_items, 
+            cart_items=cart_items,
+            grand_total=grand_total,
             name=name, 
             role=role, 
             search_query=search_query
@@ -301,7 +341,7 @@ class CartView(MethodView):
 
 
 class AddToCartView(MethodView):
-    decorators = [login_required]
+    decorators = [login_required, role_required(["Admin", "Pharmacist"])]
 
     def post(self):
         product_name = request.form.get("product_name")
@@ -319,7 +359,6 @@ class AddToCartView(MethodView):
         price = float(product[0][4])
         total_price = price * quantity
 
-        # Add to session cart
         cart_items = session.get("cart", [])
         cart_items.append({"name": product_name, "price": price, "quantity": quantity, "total_price": total_price})
         session["cart"] = cart_items
@@ -329,7 +368,7 @@ class AddToCartView(MethodView):
 
 
 class RemoveFromCart(MethodView):
-    decorators = [login_required]
+    decorators = [login_required, role_required(["Admin", "Pharmacist"])]
 
     def post(self):
         product_name = request.form.get("product_name")
@@ -339,16 +378,19 @@ class RemoveFromCart(MethodView):
         return redirect(url_for("cart"))   
 
 
-@app.route("/sales")
-@login_required
-@role_required(["Admin", "Cashier"])
-def sales():
-    name, role = get_name_role()
-    return render_template("sales.html", name=name, role=role)
+class SalesView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Cashier"])]
+
+    def get(self):
+        name, role = get_name_role()
+        sales_data = db.read("sales")
+        return render_template("sales.html", name=name, role=role, sales_data=sales_data)
+    
 
 
 @app.route("/reports")
 @login_required
+@role_required(["Admin", "Cashier"])
 def reports():
     name, role = get_name_role()
     return render_template("reports.html", name=name, role=role)
@@ -496,7 +538,7 @@ class AddUserInfoView(MethodView):
         name, role = get_name_role()
 
         if form.validate_on_submit():
-            columns = ["user_id","first_name", "last_name", "middle_name", "dob", "email_address", "gender", "home_address", "marital_status"]
+            columns = ["user_id", "first_name", "last_name", "middle_name", "dob", "email_address", "gender", "home_address", "marital_status"]
             values = [
                 user_id,
                 form.ui_fname.data,
@@ -586,6 +628,7 @@ app.add_url_rule("/orders", view_func=OrdersView.as_view("orders"))
 app.add_url_rule("/cart", view_func=CartView.as_view("cart"))
 app.add_url_rule("/add_to_cart", view_func=AddToCartView.as_view("add_to_cart"))
 app.add_url_rule("/remove_from_cart", view_func=RemoveFromCart.as_view("remove_from_cart"))
+app.add_url_rule("/sales", view_func=SalesView.as_view("sales"))
 app.add_url_rule("/settings", view_func=SettingsView.as_view("settings"))
 app.add_url_rule("/settings/edit-users", view_func=EditUsersView.as_view("edit_users"))
 app.add_url_rule("/edit-user/<int:user_id>", view_func=EditUsersView.as_view("edit_user"))
@@ -594,7 +637,6 @@ app.add_url_rule("/settings/user_info", view_func=UserInfoView.as_view("user_inf
 app.add_url_rule("/view_user_info/<int:user_id>", view_func=SingleInfoView.as_view("view_user_info"))
 app.add_url_rule("/add_user_info/<int:user_id>", view_func=AddUserInfoView.as_view("add_user_info"))
 app.add_url_rule("/edit_user_info/<int:user_id>", view_func=EditUserInfoView.as_view("edit_user_info"))
-
 
 
 

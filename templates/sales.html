@@ -26,7 +26,40 @@
           {% endfor %}
         </div>
       {% endif %}
-    {% endwith %}
+      {% endwith %}
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5>Sales & Invoice</h5>  
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Attendant</th>
+            <th scope="col">Customer</th>
+            <th scope="col">Invoice</th>
+            <th scope="col">Date</th>
+            <th scope="col">Total</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sale in sales_data %}
+          <tr>
+              <td>{{ sale[2] }}</td>
+              <td>{{ sale[3] }}</td>
+              <td>{{ sale[4] }}</td>
+              <td>{{ sale[5] }}</td>
+              <td>GH₵ {{ sale[6] }}</td>
+              <td>
+                <a class="btn btn-sm btn-primary">
+                    View
+                </a>
+              </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     
     </main>
     

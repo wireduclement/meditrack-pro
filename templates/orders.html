@@ -33,28 +33,21 @@
               {% endif %}
             {% endwith %}
             
-            <h3>Customer Information</h3><br>
-            {{ render_form(form, novalidate=True) }}
-
+            <form method="POST" action="{{ url_for('orders') }}">
+              <h3>Customer Information</h3><br>
+              {{ render_form(form, novalidate=True) }}
             
-            <br><hr>
-            <h3>Payment Information</h3>
-            {{ render_form(payment_form, novalidate=True) }}
-            
-            <br><h6>Additional Instruction or Comments</h6>
-            <div><textarea name="large_text" id="large_text"></textarea></div>
-          
-            <br><hr>
-            <h5>Terms and Conditions</h5>
-            <ul>
-              <li>The pharmacy will process the order once all necessary information is provided.</li>
-              <li>Prescription orders may require verification with the prescribing doctor.</li>
-              <li>Insurance coverage will be verified, and any copayments will be communicated to the customer.</li>
-              <li>Payment is due at the time of delivery/pickup.</li>
-            </ul>
+              <br><hr>
+              <h5>Terms and Conditions</h5>
+              <ul>
+                <li>The pharmacy will process the order once all necessary information is provided.</li>
+                <li>Prescription orders may require verification with the prescribing doctor.</li>
+                <li>Insurance coverage will be verified, and any copayments will be communicated to the customer.</li>
+                <li>Payment is due at the time of delivery/pickup.</li>
+              </ul>
 
-            <br><hr>
-            <br><button id="my-btn" class="btn btn-primary" type="submit">Submit</button>
+              <br><hr><br>
+            </form>
 
           </div>
         </div>

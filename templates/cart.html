@@ -27,7 +27,7 @@
             {% endfor %}
           </div>
         {% endif %}
-      {% endwith %}
+        {% endwith %}
     
 
       <div class="d-flex justify-content-between align-items-center mb-3">
@@ -53,7 +53,7 @@
                 <button type="submit" id="add-btn" class="btn btn-success" style="width: 30%;">+ Add to Cart</button>
             </div>
         </form>
-    </div>
+      </div>
       
       <br>
       
@@ -66,6 +66,7 @@
                   <th scope="col">Total Price (₵)</th>
                   <th scope="col"></th>
               </tr>
+              
           </thead>
           <tbody>
               {% for item in cart_items %}
@@ -85,10 +86,25 @@
                 
               </tr>
               {% endfor %}
+              <tr>
+                <th scope="col">Grand Total:</th>
+                <th></th>
+                <th></th>
+                <th scope="col">GH₵{{ grand_total }}</th>
+                <th></th>
+              </tr>
           </tbody>
       </table>
       <div class="text-end">
-        <a href="{{ url_for('orders') }}" class="btn btn-primary" style="width: 25%;">Checkout</a>
+        {% if cart_items %}
+        <a href="{{ url_for('orders') }}" class="btn btn-primary {% if not cart_items %}disabled{% endif %}" style="width: 25%;">
+          Checkout
+        </a>
+        {% else %}
+        <a href="#" class="btn btn-secondary disabled" style="width: 25%;" aria-disabled="true">
+          Checkout
+        </a>
+        {% endif %}
       </div>
       
 
