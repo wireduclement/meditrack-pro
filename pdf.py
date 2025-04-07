@@ -7,7 +7,7 @@ class PDF(FPDF):
         self.set_font("Arial", style="B", size=12)
         self.cell(0, 10, "Pharmacy Invoice", ln=True, align="C")
 
-def generate_invoice_pdf(customer, cart_items, invoice_number):
+def generate_invoice_pdf(customer, cart_items, invoice_number, comments):
     pdf = PDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
@@ -32,6 +32,9 @@ def generate_invoice_pdf(customer, cart_items, invoice_number):
 
     grand_total = sum(item["total_price"] for item in cart_items)
     pdf.cell(200, 10, txt=safe_text(f"Grand Total: GHS{grand_total}"), ln=True)
+
+    pdf.cell(200, 10, txt=safe_text("Instruction or Comments"), ln=True, align="C")
+    pdf.cell(200, 10, txt=safe_text(comments), ln=True, align="C")
 
     pdf_path = os.path.join(invoices_dir, f"{invoice_number}.pdf")
     pdf.output(pdf_path, "F")

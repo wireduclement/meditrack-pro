@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, flash    
+from flask import Flask, render_template, request, redirect, url_for, flash, session, flash, send_from_directory
 from functools import wraps
 from flask_bootstrap import Bootstrap5
 from flask.views import MethodView
@@ -9,7 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from db import Database
 from dotenv import load_dotenv
 from pdf import generate_invoice_pdf
-from datetime import datetime
+from datetime import datetime, date
 import os
 
 
@@ -21,6 +21,7 @@ Bootstrap5(app)
 
 
 db = Database("localhost", "root", "", "pharmacy_management")
+TODAY = date.today()
 
 
 class ProductForm(FlaskForm):
@@ -142,8 +143,15 @@ class DashboardView(MethodView):
         if not session.get('logged_in'):
             return redirect(url_for("login"))
         name, role = get_name_role()
-        return render_template("dashboard.html", name=name, role=role, total_products=total_products)
 
+        daily_sales = db.read("sales", [("DATE(date)", str(TODAY))])
+        daily_sales_total = sum(float(sale[6]) for sale in daily_sales)
+
+        # products = db.read("products", [("DATE(date)", str(today))])
+        # expired_product = [for product in products if product]
+
+        return render_template("dashboard.html", name=name, role=role, total_products=total_products, daily_sales_total=daily_sales_total)
+    
 
 class AddView(MethodView):
     decorators = [login_required, role_required(["Admin", "Pharmacist"])]
@@ -227,11 +235,19 @@ class ProductView(MethodView):
             products = db.read("products", {"name": f"%{search_query}%"}, like=True)
         else:
             products = db.read("products")
-        return render_template("products.html", products=products, name=name, role=role, search_query=search_query)
+
+        # notify expired products with red column bg
+        processed_products = []
+        for product in products:
+            expiry_date = product[6]
+            is_expired = expiry_date <= TODAY
+            processed_products.append(list(product) + [is_expired])
+
+        return render_template("products.html", products=processed_products, name=name, role=role, search_query=search_query)
 
 
 class OrdersView(MethodView):
-    decorators = [login_required, role_required(["Admin", "Cashier", "Pharmacist"])]
+    decorators = [login_required, role_required(["Admin", "Pharmacist"])]
 
     def get(self):
         name, role = get_name_role()
@@ -264,6 +280,7 @@ class OrdersView(MethodView):
 
             invoice_number = f"INV{int(datetime.now().timestamp())}"
             total = sum(item["total_price"] for item in cart_items)
+            comments = form.c_comments.data
 
             user = db.read("users", {"name": name})
             if not user:
@@ -272,20 +289,22 @@ class OrdersView(MethodView):
             user_id = user[0][0]
 
             try:
-                pdf_path = generate_invoice_pdf(customer, cart_items, invoice_number)
+                for item in cart_items:
+                    product_id = item["id"]
+                    quantity_purchased = item["quantity"]
+                    
+                    product = db.read("products", {"product_id": product_id})
+                    if product:
+                        current_stock = product[0][5]                
+                        new_stock = max(0, current_stock - quantity_purchased) 
+                        db.update("products", {"quantity_in_stock": new_stock}, {"product_id": product_id})
+
+                pdf_path = generate_invoice_pdf(customer, cart_items, invoice_number, comments)
 
                 db.insert("customers", list(customer.keys()), list(customer.values()))
 
                 columns = ["user_id", "attendant", "customer_name", "invoice_number", "date", "total"]
-                values = [
-                    user_id,
-                    name,
-                    form.c_fullname.data,
-                    invoice_number,
-                    datetime.now(),
-                    float(total)
-                ]
-
+                values = [user_id, name, form.c_fullname.data, invoice_number, datetime.now(), float(total)]
                 db.insert("sales", columns, values)
 
                 session.pop("cart", None)
@@ -356,11 +375,24 @@ class AddToCartView(MethodView):
             flash("Product not found", "danger")
             return redirect(url_for("cart"))
         
-        price = float(product[0][4])
+        product_data = product[0]
+        current_stock = product_data[5]  
+        price = float(product_data[4]) 
+        
+        if quantity > current_stock:
+            flash(f"Not enough stock for {product_name}. Only {current_stock} available", "warning")
+            return redirect(url_for("cart"))
+        
         total_price = price * quantity
 
         cart_items = session.get("cart", [])
-        cart_items.append({"name": product_name, "price": price, "quantity": quantity, "total_price": total_price})
+        cart_items.append({
+            "id": product_data[0],
+            "name": product_name, 
+            "price": price, 
+            "quantity": quantity, 
+            "total_price": total_price
+        })
         session["cart"] = cart_items
         flash("Item added to cart successfully", "success")
 
@@ -385,8 +417,13 @@ class SalesView(MethodView):
         name, role = get_name_role()
         sales_data = db.read("sales")
         return render_template("sales.html", name=name, role=role, sales_data=sales_data)
-    
 
+  
+@app.route('/invoices/<filename>')
+def serve_invoice(filename):
+    invoice_path = os.path.join('static', 'invoices')
+    return send_from_directory(invoice_path, filename)
+    
 
 @app.route("/reports")
 @login_required

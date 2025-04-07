@@ -33,11 +33,11 @@
           <div class="col-md-6 mb-3">
             <div class="card w-100">
               <div class="card-body">
-                <h5 class="card-title d-flex justify-content-between align-items-center">Sales
+                <h5 class="card-title d-flex justify-content-between align-items-center">Daily Sales
                   <img src="../static/svg/total_sales.svg" class="rep-img" alt="Total Sales">
                 </h5>
                 <p class="card-text ">Total:</p>
-                <p>-</p>
+                <p>GH₵ {{ daily_sales_total }}</p>
                 <a href="{{ url_for('sales') }}" class="btn btn-primary">View</a>
               </div>
             </div>

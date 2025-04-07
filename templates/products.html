@@ -55,7 +55,7 @@
 
         <tbody>
           {% for product in products %}
-          <tr>
+            <tr {% if product[-1] %} style="background-color: red; color: white;" {% endif %}>
               <td>{{ product[1] }}</td>
               <td>{{ product[2] }}</td>
               <td>{{ product[3] }}</td>
@@ -63,6 +63,7 @@
               <td>{{ product[5] }}</td>
               <td>{{ product[6] }}</td>
               <td>{{ product[7] }}</td>
+              <!-- notify expired products with red column bg -->
               <td>
                 <a href="{{ url_for('edit_product', product_id=product[0] )}}" class="btn btn-sm btn-primary">Edit</a>
               </td>

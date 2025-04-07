@@ -37,7 +37,7 @@
           <tr>
             <th scope="col">Attendant</th>
             <th scope="col">Customer</th>
-            <th scope="col">Invoice</th>
+            <th scope="col">Invoice No.</th>
             <th scope="col">Date</th>
             <th scope="col">Total</th>
             <th scope="col">Action</th>
@@ -52,8 +52,10 @@
               <td>{{ sale[5] }}</td>
               <td>GH₵ {{ sale[6] }}</td>
               <td>
-                <a class="btn btn-sm btn-primary">
-                    View
+                <a href="{{ url_for('serve_invoice', filename=sale[4] + '.pdf') }}"
+                   class="btn btn-sm btn-primary" 
+                   target="_blank">
+                    View Invoice
                 </a>
               </td>
           </tr>
