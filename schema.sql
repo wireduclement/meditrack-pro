@@ -1,4 +1,4 @@
-CREATE TABLE Users (
+CREATE TABLE users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100),
     email VARCHAR(255),
@@ -8,7 +8,7 @@ CREATE TABLE Users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE Products (
+CREATE TABLE products (
     product_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100),
     brand VARCHAR(100),
@@ -19,26 +19,26 @@ CREATE TABLE Products (
     manufacturer VARCHAR(100)
 );
 
-CREATE TABLE Sales (
+CREATE TABLE sales (
     sale_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
     total_amount DECIMAL(10, 2),
     sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     payment_method VARCHAR(50),
-    FOREIGN KEY (user_id) REFERENCES Users(user_id)
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
-CREATE TABLE Sales_details (
+CREATE TABLE sales_details (
     sale_detail_id INT AUTO_INCREMENT PRIMARY KEY,
     sale_id INT,
     product_id INT,
     quantity INT,
     price DECIMAL(10, 2),
-    FOREIGN KEY (sale_id) REFERENCES Sales(sale_id),
-    FOREIGN KEY (product_id) REFERENCES Products(product_id)
+    FOREIGN KEY (sale_id) REFERENCES sales(sale_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
 );
 
-CREATE TABLE Customers (
+CREATE TABLE customers (
     customer_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100),
     contact_info VARCHAR(15),
@@ -46,10 +46,10 @@ CREATE TABLE Customers (
     address VARCHAR(50)
 );
 
-CREATE TABLE Inventory (
+CREATE TABLE inventory (
     inventory_id INT AUTO_INCREMENT PRIMARY KEY,
     product_id INT,
     quantity_in_stock INT,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES Products(product_id)
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
 );
