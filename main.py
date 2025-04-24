@@ -379,6 +379,7 @@ class AddToCartView(MethodView):
         current_stock = product_data[5]  
         price = float(product_data[4]) 
         
+        # not done
         if quantity > current_stock:
             flash(f"Not enough stock for {product_name}. Only {current_stock} available", "warning")
             return redirect(url_for("cart"))

@@ -4,8 +4,22 @@ CREATE TABLE users (
     email VARCHAR(255),
     password VARCHAR(255),
     role ENUM('Admin', 'Pharmacist', 'Cashier'),
-    phone_number VARCHAR(15),
+    contact_info VARCHAR(15),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_info (
+    user_info_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    middle_name VARCHAR(100),
+    dob DATE,
+    email_address VARCHAR(100),
+    gender VARCHAR(10),
+    home_address VARCHAR(100),
+    marital_status VARCHAR(100),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
 CREATE TABLE products (
@@ -40,10 +54,11 @@ CREATE TABLE sales_details (
 
 CREATE TABLE customers (
     customer_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100),
-    contact_info VARCHAR(15),
-    email VARCHAR(50),
-    address VARCHAR(50)
+    attendant VARCHAR(100),
+    customer_name VARCHAR(100),
+    invoice_number INT,
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total DECIMAL(10, 2)
 );
 
 CREATE TABLE inventory (
