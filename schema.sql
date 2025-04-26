@@ -29,16 +29,18 @@ CREATE TABLE products (
     category VARCHAR(100),
     price DECIMAL(10, 2),
     quantity_in_stock INT,
-    expiry_date TIMESTAMP,
+    expiry_date DATE,
     manufacturer VARCHAR(100)
 );
 
 CREATE TABLE sales (
     sale_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
-    total_amount DECIMAL(10, 2),
-    sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    payment_method VARCHAR(50),
+    attendant VARCHAR(100),
+    customer_name VARCHAR(100),
+    invoice_number VARCHAR(100),
+    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total DECIMAL(10, 2),
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
@@ -54,11 +56,11 @@ CREATE TABLE sales_details (
 
 CREATE TABLE customers (
     customer_id INT AUTO_INCREMENT PRIMARY KEY,
-    attendant VARCHAR(100),
-    customer_name VARCHAR(100),
-    invoice_number INT,
-    date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    total DECIMAL(10, 2)
+    fullname VARCHAR(100),
+    contact_info VARCHAR(100),
+    email VARCHAR(100),
+    address VARCHAR(100),
+    payment_method VARCHAR(50),
 );
 
 CREATE TABLE inventory (

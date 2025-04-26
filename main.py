@@ -237,13 +237,13 @@ class ProductView(MethodView):
             products = db.read("products")
 
         # notify expired products with red column bg
-        processed_products = []
-        for product in products:
-            expiry_date = product[6]
-            is_expired = expiry_date <= TODAY
-            processed_products.append(list(product) + [is_expired])
+        # processed_products = []
+        # for product in products:
+        #     expiry_date = product[6]
+        #     is_expired = expiry_date <= TODAY
+        #     processed_products.append(list(product) + [is_expired])
 
-        return render_template("products.html", products=processed_products, name=name, role=role, search_query=search_query)
+        return render_template("products.html", products=products, name=name, role=role, search_query=search_query)
 
 
 class OrdersView(MethodView):
