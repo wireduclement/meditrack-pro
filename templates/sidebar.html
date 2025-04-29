@@ -42,6 +42,18 @@
             Reports
           </a>
         </li>
+        <li class="nav-item">
+          <a href="{{ url_for('stock_shortage') }}" class="nav-link {% if request.endpoint == 'stock_shortage' %}active{% else %}text-black{% endif %}">
+            <img src="../static/svg/short1.svg">
+            Stock Shortage
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('expired_products') }}" class="nav-link {% if request.endpoint == 'expired_products' %}active{% else %}text-black{% endif %}">
+            <img src="../static/svg/expired1.svg">
+            Expired Products
+          </a>
+        </li>
 
         <hr class="my-3">
 

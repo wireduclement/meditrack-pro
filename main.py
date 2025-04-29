@@ -21,7 +21,7 @@ Bootstrap5(app)
 
 
 db = Database("localhost", "root", "", "pharmacy_management")
-TODAY = date.today()
+TODAY = datetime.today().date()
 
 
 class ProductForm(FlaskForm):
@@ -147,10 +147,21 @@ class DashboardView(MethodView):
         daily_sales = db.read("sales", [("DATE(date)", str(TODAY))])
         daily_sales_total = sum(float(sale[6]) for sale in daily_sales)
 
-        # products = db.read("products", [("DATE(date)", str(today))])
-        # expired_product = [for product in products if product]
+        products = db.read("products")
+        low_stock_products = [product for product in products if product[5] <= 20]
+        num_low_stocks = len(low_stock_products)
 
-        return render_template("dashboard.html", name=name, role=role, total_products=total_products, daily_sales_total=daily_sales_total)
+        expired_products = [product for product in products if product[6] == TODAY]
+        num_expired_products = len(expired_products)
+
+        return render_template(
+            "dashboard.html", 
+            name=name, role=role, 
+            total_products=total_products, 
+            daily_sales_total=daily_sales_total, 
+            num_low_stocks=num_low_stocks, 
+            num_expired_products=num_expired_products
+        )
     
 
 class AddView(MethodView):
@@ -236,14 +247,20 @@ class ProductView(MethodView):
         else:
             products = db.read("products")
 
-        # notify expired products with red column bg
-        # processed_products = []
-        # for product in products:
-        #     expiry_date = product[6]
-        #     is_expired = expiry_date <= TODAY
-        #     processed_products.append(list(product) + [is_expired])
+        for product in products:
+            quantity_in_stock = product[5]
+            if quantity_in_stock == 0:
+                db.delete("products", {"product_id": product[0]})
+            products = db.read("products")
 
-        return render_template("products.html", products=products, name=name, role=role, search_query=search_query)
+        # notify expired products with red text
+        processed_products = []
+        for product in products:
+            expiry_date = product[6]
+            is_expired = expiry_date <= TODAY
+            processed_products.append(list(product) + [is_expired])
+
+        return render_template("products.html", products=processed_products, name=name, role=role, search_query=search_query)
 
 
 class OrdersView(MethodView):
@@ -317,6 +334,7 @@ class OrdersView(MethodView):
                 error_details = traceback.format_exc()
                 print(f"Full error details:\n{error_details}")
                 flash(f"Error processing order: {str(e)}", "danger")
+                return redirect(url_for("orders")) 
 
         cart_items = session.get("cart", [])
         return render_template("orders.html", name=name, role=role, form=form, cart_items=cart_items, user_id=user_id)   
@@ -639,6 +657,29 @@ class EditUserInfoView(MethodView):
             flash("User info updated successfully.", "success")
             return redirect(url_for("user_info"))
         return render_template("edit_user_info.html", form=form, name=name, role=role)
+    
+
+class StockShortageView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Pharmacist"])]
+
+    def get(self):
+        name, role = get_name_role()
+        products = db.read("products")
+
+        low_stock_products = [product for product in products if product[5] <= 20]
+        return render_template("stock_shortage.html", products=low_stock_products, name=name, role=role)
+
+
+class ExpiredProductView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Pharmacist"])]
+
+    def get(self):
+        name, role = get_name_role()
+        products = db.read("products")
+
+        expired_products = expired_products = [product for product in products if product[6] == TODAY]
+        return render_template("expired_products.html", products=expired_products, name=name, role=role)
+
 
 
 @app.route("/settings/update-profile", methods=["GET", "POST"])
@@ -675,6 +716,8 @@ app.add_url_rule("/settings/user_info", view_func=UserInfoView.as_view("user_inf
 app.add_url_rule("/view_user_info/<int:user_id>", view_func=SingleInfoView.as_view("view_user_info"))
 app.add_url_rule("/add_user_info/<int:user_id>", view_func=AddUserInfoView.as_view("add_user_info"))
 app.add_url_rule("/edit_user_info/<int:user_id>", view_func=EditUserInfoView.as_view("edit_user_info"))
+app.add_url_rule("/stock_shortage", view_func=StockShortageView.as_view("stock_shortage"))
+app.add_url_rule("/expired_products", view_func=ExpiredProductView.as_view("expired_products"))
 
 
 
