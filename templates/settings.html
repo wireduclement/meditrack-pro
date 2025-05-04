@@ -7,7 +7,7 @@
 
     <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
       <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h2">Settings</h1>
+        <h1 class="h3">Settings</h1>
         <div class="btn-toolbar mb-2 mb-md-0">
           <div class="btn-group me-2">
             <a>{{ name }} - {{ role }}</a>
@@ -38,6 +38,12 @@
                 User Information
               </a>
             </li>
+            <li class="nav-item">
+              <a href="{{ url_for('change_password') }}" class="nav-link {% if active_section == 'change_password' %}active{% else %}text-black{% endif %}">
+                <img src="../static/svg/pwd.svg">
+                Change Password
+              </a>
+            </li>
           </ul>
         </div>
 
@@ -55,68 +61,88 @@
           </div>
         {% endif %}
         {% endwith %}
-          {% if active_section == 'edit_users' %}
-          <table class="table">
-            <thead>
-              <tr>
-                <th scope="col">#</th>
-                <th scope="col">Name</th>
-                <th scope="col">Role</th>
-                <th scope="col">Contact</th>
-                <th scope="col">Action</th>
-              </tr>
-            </thead>
 
-            <tbody>
-              {% for user in users %}
-              <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ user[1] }}</td>
-                <td>{{ user[4] }}</td>
-                <td>{{ user[5] }}</td>
-                <td>
+        {% if active_section == 'edit_users' %}
+        <h3>Edit Users</h3>
+        <br>
+        
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Name</th>
+              <th scope="col">Role</th>
+              <th scope="col">Contact</th>
+              <th scope="col">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for user in users %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ user[1] }}</td>
+              <td>{{ user[4] }}</td>
+              <td>{{ user[5] }}</td>
+              <td>
+                {% if role == 'Admin'%}
                   <a href="{{ url_for('edit_user', user_id=user[0] )}}" class="btn btn-sm btn-primary">Edit</a>
                   <a href="{{ url_for('delete_user', user_id=user[0] )}}" class="btn btn-sm btn-danger">Delete</a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-          {% endif %}
+                {% else %}
+                  <a class="btn btn-sm btn-primary disabled" style="background-color: gray;" aria-disabled="true">Edit</a>
+                  <a class="btn btn-sm btn-danger disabled" style="background-color: gray;" aria-disabled="true">Delete</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
 
-          {% if active_section == 'setup_profile' %}
-          <h2>Setup Profile</h2>
-          
-          {{ render_form(form, novalidate=True) }}
+        {% if active_section == 'setup_profile' %}
+        <h3>Setup Profile</h3>
+        <br>
+        
+        {{ render_form(form, novalidate=True) }}
 
-          {% elif active_section == 'user_info' %}
-          <table class="table">
-            <thead>
-              <tr>
-                <th scope="col">#</th>
-                <th scope="col">Name</th>
-                <th scope="col">Role</th>
-                <th scope="col">Action</th>
-              </tr>
-            </thead>
+        {% elif active_section == 'user_info' %}
+        <h3>Update User Info</h3>
+        <br>
 
-            <tbody>
-              {% for user in users %}
-              <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ user[1] }}</td>
-                <td>{{ user[4] }}</td>
-                <td>
-                  <a href="{{ url_for('view_user_info', user_id=user[0] )}}" class="btn btn-sm btn-dark">View</a>
-                  <a href="{{ url_for('add_user_info', user_id=user[0] )}}" class="btn btn-sm btn-primary">Update</a>
-                  <a href="{{ url_for('edit_user_info', user_id=user[0] )}}" class="btn btn-sm btn-secondary">Edit</a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-          
-          {% endif %}
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Name</th>
+              <th scope="col">Role</th>
+              <th scope="col">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for user in users %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>{{ user[1] }}</td>
+              <td>{{ user[4] }}</td>
+              <td>
+                <a href="{{ url_for('view_user_info', user_id=user[0] )}}" class="btn btn-sm btn-dark">View</a>
+                <a href="{{ url_for('add_user_info', user_id=user[0] )}}" class="btn btn-sm btn-primary">Update</a>
+                <a href="{{ url_for('edit_user_info', user_id=user[0] )}}" class="btn btn-sm btn-secondary">Edit</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table> 
+        {% endif %}
+
+        {% if active_section == 'change_password' %}
+        <h3>Update User Password</h3>
+        <br>
+        
+        {{ render_form(form, novalidate=True) }}
+
+        {% endif %}
         </div>
       </div>
     </main>

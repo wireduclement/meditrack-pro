@@ -9,8 +9,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from db import Database
 from dotenv import load_dotenv
 from pdf import generate_invoice_pdf
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import os
+import dash
+import pandas as pd
+from dash import dcc, html
+from dash.dependencies import Input, Output
+import plotly.express as px
 
 
 load_dotenv()
@@ -72,6 +77,13 @@ class CustomerForm(FlaskForm):
     c_payment_method = RadioField("Preferred Payment Method", choices=[("insurance","Insurance"), ("cash","Cash"), ("mobile_money","Mobile Money"), ("bank_transfer", "Bank Transfer")], validators=[DataRequired()])
     c_comments = TextAreaField("Additional Instruction or Comments", validators=[DataRequired()], render_kw={"class": "form-control", "rows": 5})
     submit = SubmitField("Confirm Order")
+
+
+class ChangePasswordForm(FlaskForm):
+    current_pwd = PasswordField("Current Password", validators=[DataRequired(), Length(min=7)])
+    new_pwd = PasswordField("New Password", validators=[DataRequired(), Length(min=7, message="Password must be at least 7 characters long")])
+    c_new_pwd = PasswordField("Confirm New Password", validators=[DataRequired(), Length(min=7, message="Password must match")])
+    submit = SubmitField("Update")
 
 def login_required(f):
     @wraps(f)
@@ -135,6 +147,89 @@ class LoginView(MethodView):
         return render_template("login.html")
 
 
+# Initialize Dash app within Flask
+external_stylesheets = ['/static/css/styles.css']
+dash_app = dash.Dash(__name__, server=app, url_base_pathname='/dash/', external_stylesheets=external_stylesheets)
+
+TODAY = date.today()
+
+dash_app.layout = html.Div([
+    dcc.Dropdown(
+        id='sales-view-dropdown',
+        options=[
+            {'label': 'Daily Sales', 'value': 'daily'},
+            {'label': 'Weekly Total', 'value': 'weekly'}
+        ],
+        value='daily',
+        style={'width': '50%'}
+    ),
+    dcc.Graph(id='weekly-sales-graph'),
+    dcc.Graph(id='inventory-status-graph'),
+])
+
+@dash_app.callback(
+    [Output('weekly-sales-graph', 'figure'),
+     Output('inventory-status-graph', 'figure')],
+    [Input('weekly-sales-graph', 'id'),
+     Input('sales-view-dropdown', 'value')]
+)
+def update_graphs(_, sales_view):
+    start_date = TODAY - timedelta(days=6)
+    weekly_sales = db.read("sales", [("DATE(date)", ">=", str(start_date)), ("DATE(date)", "<=", str(TODAY))])
+    weekly_sales_totals = {}
+    for sale in weekly_sales:
+        day = sale[4].split()[0] if isinstance(sale[4], str) else str(sale[4])
+        weekly_sales_totals[day] = weekly_sales_totals.get(day, 0) + float(sale[6])
+    days = [(TODAY - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(6, -1, -1)]
+    sales_data = [weekly_sales_totals.get(day, 0) for day in days]
+
+    products = db.read("products")
+    weekly_low_stock = []
+    weekly_expired = []
+    for i in range(7):
+        day = TODAY - timedelta(days=i)
+        low_stock = [p for p in products if p[5] <= 20]
+        expired = [p for p in products if p[6] <= day] 
+        weekly_low_stock.append(len(low_stock))
+        weekly_expired.append(len(expired))
+
+    sales_df = pd.DataFrame({
+        'Date': days,
+        'Daily Sales': sales_data
+    })
+
+    if sales_view == 'weekly':
+        sales_df['Weekly Sales'] = sales_df['Daily Sales'].cumsum()
+
+    inventory_df = pd.DataFrame({
+        'Date': days,
+        'Low Stock': weekly_low_stock,
+        'Expired Products': weekly_expired
+    })
+
+    sales_fig = px.line(
+        sales_df,
+        x='Date',
+        y='Daily Sales' if sales_view == 'daily' else 'Weekly Sales',
+        title=f"{'Daily' if sales_view == 'daily' else 'Weekly'} Sales Trend",
+        labels={'Daily Sales': 'Amount (GH₵)', 'Weekly Sales': 'Amount (GH₵)', 'Date': 'Date'},
+        color_discrete_sequence=['#636EFA']
+    )
+
+    inventory_fig = px.line(
+        inventory_df.melt(id_vars='Date', value_vars=['Low Stock', 'Expired Products'], 
+                          var_name='Category', value_name='Count'),
+        x='Date',
+        y='Count',
+        color='Category',
+        title="Inventory Status Trend",
+        labels={'Count': 'Count', 'Date': 'Date'},
+        color_discrete_sequence=['#EF553B', '#00CC96']
+    )
+
+    return sales_fig, inventory_fig
+
+
 class DashboardView(MethodView):
     decorators = [login_required]
 
@@ -151,7 +246,7 @@ class DashboardView(MethodView):
         low_stock_products = [product for product in products if product[5] <= 20]
         num_low_stocks = len(low_stock_products)
 
-        expired_products = [product for product in products if product[6] == TODAY]
+        expired_products = [product for product in products if product[6] <= TODAY]
         num_expired_products = len(expired_products)
 
         return render_template(
@@ -253,11 +348,11 @@ class ProductView(MethodView):
                 db.delete("products", {"product_id": product[0]})
             products = db.read("products")
 
-        # notify expired products with red text
         processed_products = []
         for product in products:
             expiry_date = product[6]
-            is_expired = expiry_date <= TODAY
+            expiry_day = expiry_date.date() if hasattr(expiry_date, 'date') else expiry_date
+            is_expired = expiry_day <= TODAY
             processed_products.append(list(product) + [is_expired])
 
         return render_template("products.html", products=processed_products, name=name, role=role, search_query=search_query)
@@ -397,7 +492,6 @@ class AddToCartView(MethodView):
         current_stock = product_data[5]  
         price = float(product_data[4]) 
         
-        # not done
         if quantity > current_stock:
             flash(f"Not enough stock for {product_name}. Only {current_stock} available", "warning")
             return redirect(url_for("cart"))
@@ -453,14 +547,14 @@ def reports():
 
 
 class SettingsView(MethodView):
-    decorators = [login_required, role_required(["Admin"])]
+    decorators = [login_required, role_required(["Admin", "Pharmacist", "Cashier"])]
 
     def get(self):
         return redirect(url_for("edit_users"))
 
 
 class EditUsersView(MethodView):
-    decorators = [login_required, role_required(["Admin"])]
+    decorators = [login_required, role_required(["Admin", "Pharmacist", "Cashier"])]
 
     def get(self, user_id=None):
         name, role = get_name_role()
@@ -677,9 +771,49 @@ class ExpiredProductView(MethodView):
         name, role = get_name_role()
         products = db.read("products")
 
-        expired_products = expired_products = [product for product in products if product[6] == TODAY]
+        expired_products = expired_products = [product for product in products if product[6] <= TODAY]
         return render_template("expired_products.html", products=expired_products, name=name, role=role)
+    
 
+class ChangePasswordView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Pharmacist", "Cashier"])]
+
+    def get(self):
+        name, role = get_name_role()
+        form = ChangePasswordForm()
+        return render_template("settings.html", active_section="change_password", form=form, name=name, role=role)
+
+
+    def post(self):
+        name, role = get_name_role()
+        form = ChangePasswordForm()
+
+        if form.validate_on_submit():
+            current_pwd = form.current_pwd.data
+            new_pwd = form.new_pwd.data
+            c_new_pwd = form.c_new_pwd.data
+
+            if new_pwd != c_new_pwd:
+                flash("New passwords do not match.", "danger")
+                return render_template("settings.html", active_section="change_password", form=form, name=name, role=role)
+
+            user = db.read("users", {"name": name}, columns=["password"])
+            if not user:
+                flash("User not found.", "danger")
+                return render_template("settings.html", active_section="change_password", form=form, name=name, role=role)
+
+            stored_password = user[0][0]
+
+            if not check_password_hash(stored_password, current_pwd):
+                flash("Incorrect current password.", "danger")
+                return render_template("settings.html", active_section="change_password", form=form, name=name, role=role)
+
+            hashed_password = generate_password_hash(new_pwd, method='pbkdf2:sha256', salt_length=16)
+            db.update("users", {"password": hashed_password}, {"name": name})
+
+            flash("Password updated successfully.", "success")
+
+        return render_template("settings.html", active_section="change_password", form=form, name=name, role=role)
 
 
 @app.route("/settings/update-profile", methods=["GET", "POST"])
@@ -718,7 +852,7 @@ app.add_url_rule("/add_user_info/<int:user_id>", view_func=AddUserInfoView.as_vi
 app.add_url_rule("/edit_user_info/<int:user_id>", view_func=EditUserInfoView.as_view("edit_user_info"))
 app.add_url_rule("/stock_shortage", view_func=StockShortageView.as_view("stock_shortage"))
 app.add_url_rule("/expired_products", view_func=ExpiredProductView.as_view("expired_products"))
-
+app.add_url_rule("/settings/change-password", view_func=ChangePasswordView.as_view("change_password"))
 
 
 if __name__ == "__main__":
