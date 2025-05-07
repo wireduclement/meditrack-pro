@@ -15,7 +15,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, SelectField, DateField, EmailField, PasswordField, RadioField, TextAreaField
 from wtforms.validators import DataRequired, EqualTo, Regexp, Length, Optional
 from werkzeug.security import generate_password_hash, check_password_hash
-from db import Database
+from database.db import Database
 from dotenv import load_dotenv
 from pdf import generate_invoice_pdf
 from datetime import datetime, timedelta
@@ -242,7 +242,9 @@ class DashboardView(MethodView):
             return redirect(url_for("login"))
         name, role = get_name_role()
 
-        daily_sales = db.read("sales", [("DATE(date)", str(TODAY))])
+        today = datetime.today().date()
+        sales = db.read("sales")
+        daily_sales = [sale for sale in sales if sale[5].date() == today]
         daily_sales_total = sum(float(sale[6]) for sale in daily_sales)
 
         products = db.read("products")
@@ -533,6 +535,9 @@ class SalesView(MethodView):
         name, role = get_name_role()
         sales_data = db.read("sales")
         return render_template("sales.html", name=name, role=role, sales_data=sales_data)
+    
+
+
 
   
 @app.route('/invoices/<filename>')
@@ -632,7 +637,20 @@ class WeeklySalesView(MethodView):
             if start_of_week.date() <= sale[5].date() <= end_of_week.date()
         ]
 
-        return render_template("weekly.html", name=name, role=role, weekly_sales=weekly_sales)
+        return render_template("weekly_sales.html", name=name, role=role, weekly_sales=weekly_sales)
+    
+
+class DailySalesView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Cashier"])]
+
+    def get(self):
+        name, role = get_name_role()
+        sales = db.read("sales")
+
+        today = datetime.today().date()
+        daily_sales = [sale for sale in sales if sale[5].date() == today]
+
+        return render_template("daily_sales.html", name=name, role=role, daily_sales=daily_sales)
 
 
 class MonthlySalesView(MethodView):
@@ -652,7 +670,7 @@ class MonthlySalesView(MethodView):
             if start_of_month.date() <= sale[5].date() <= end_of_month.date()
         ]
 
-        return render_template("monthly.html", name=name, role=role, sales=sales, monthly_sales=monthly_sales)
+        return render_template("monthly_sales.html", name=name, role=role, monthly_sales=monthly_sales)
 
     
 class SettingsView(MethodView):
@@ -952,18 +970,19 @@ app.add_url_rule("/add_to_cart", view_func=AddToCartView.as_view("add_to_cart"))
 app.add_url_rule("/remove_from_cart", view_func=RemoveFromCart.as_view("remove_from_cart"))
 app.add_url_rule("/sales", view_func=SalesView.as_view("sales"))
 app.add_url_rule("/reports", view_func=ReportView.as_view("reports"))
-app.add_url_rule("/weekly_sales", view_func=WeeklySalesView.as_view("weekly_sales"))
-app.add_url_rule("/monthly_sales", view_func=MonthlySalesView.as_view("monthly_sales"))
+app.add_url_rule("/weekly-sales", view_func=WeeklySalesView.as_view("weekly_sales"))
+app.add_url_rule("/monthly-sales", view_func=MonthlySalesView.as_view("monthly_sales"))
+app.add_url_rule("/daily-sales", view_func=DailySalesView.as_view("daily_sales"))
 app.add_url_rule("/settings", view_func=SettingsView.as_view("settings"))
 app.add_url_rule("/settings/edit-users", view_func=EditUsersView.as_view("edit_users"))
 app.add_url_rule("/edit-user/<int:user_id>", view_func=EditUsersView.as_view("edit_user"))
 app.add_url_rule("/settings/setup-profile", view_func=SetupProfileView.as_view("setup_profile"))
 app.add_url_rule("/settings/user_info", view_func=UserInfoView.as_view("user_info"))
-app.add_url_rule("/view_user_info/<int:user_id>", view_func=SingleInfoView.as_view("view_user_info"))
+app.add_url_rule("/view-user_info/<int:user_id>", view_func=SingleInfoView.as_view("view_user_info"))
 app.add_url_rule("/add_user_info/<int:user_id>", view_func=AddUserInfoView.as_view("add_user_info"))
 app.add_url_rule("/edit_user_info/<int:user_id>", view_func=EditUserInfoView.as_view("edit_user_info"))
-app.add_url_rule("/stock_shortage", view_func=StockShortageView.as_view("stock_shortage"))
-app.add_url_rule("/expired_products", view_func=ExpiredProductView.as_view("expired_products"))
+app.add_url_rule("/stock-shortage", view_func=StockShortageView.as_view("stock_shortage"))
+app.add_url_rule("/expired-products", view_func=ExpiredProductView.as_view("expired_products"))
 app.add_url_rule("/settings/change-password", view_func=ChangePasswordView.as_view("change_password"))
 
 
