@@ -1,3 +1,12 @@
+import os
+import dash
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objs as go
+from calendar import monthrange
+from dash import dcc, html 
+from collections import Counter
+from dash.dependencies import Input, Output
 from flask import Flask, render_template, request, redirect, url_for, flash, session, flash, send_from_directory
 from functools import wraps
 from flask_bootstrap import Bootstrap5
@@ -9,14 +18,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from db import Database
 from dotenv import load_dotenv
 from pdf import generate_invoice_pdf
-from datetime import datetime, date, timedelta
-import os
-import dash
-import pandas as pd
-from dash import dcc, html
-from dash.dependencies import Input, Output
-import plotly.express as px
-
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -85,6 +87,7 @@ class ChangePasswordForm(FlaskForm):
     c_new_pwd = PasswordField("Confirm New Password", validators=[DataRequired(), Length(min=7, message="Password must match")])
     submit = SubmitField("Update")
 
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -151,7 +154,6 @@ class LoginView(MethodView):
 external_stylesheets = ['/static/css/styles.css']
 dash_app = dash.Dash(__name__, server=app, url_base_pathname='/dash/', external_stylesheets=external_stylesheets)
 
-TODAY = date.today()
 
 dash_app.layout = html.Div([
     dcc.Dropdown(
@@ -173,6 +175,7 @@ dash_app.layout = html.Div([
     [Input('weekly-sales-graph', 'id'),
      Input('sales-view-dropdown', 'value')]
 )
+
 def update_graphs(_, sales_view):
     start_date = TODAY - timedelta(days=6)
     weekly_sales = db.read("sales", [("DATE(date)", ">=", str(start_date)), ("DATE(date)", "<=", str(TODAY))])
@@ -536,16 +539,122 @@ class SalesView(MethodView):
 def serve_invoice(filename):
     invoice_path = os.path.join('static', 'invoices')
     return send_from_directory(invoice_path, filename)
+
+
+dash_app = dash.Dash(__name__, server=app, url_base_pathname='/trend_dash/')
+
+ # Dummy data — replace with your actual weekly/monthly/product stats
+x_values = ['Week 1', 'Week 2', 'Week 3', 'Week 4']
+weekly_sales = [400, 550, 1000, 700]
+monthly_sales = [1600, 1800, 1700, 1900]
+top_selling_product = [80, 90, 100, 95]
+least_selling_product = [10, 12, 9, 11]
+
+fig = go.Figure()
+
+fig.add_trace(go.Scatter(x=x_values, y=weekly_sales, mode='lines+markers', name='Weekly Sales', line=dict(color='blue')))
+fig.add_trace(go.Scatter(x=x_values, y=monthly_sales, mode='lines+markers', name='Monthly Sales', line=dict(color='green')))
+fig.add_trace(go.Scatter(x=x_values, y=top_selling_product, mode='lines+markers', name='Top Product Sales', line=dict(color='orange')))
+fig.add_trace(go.Scatter(x=x_values, y=least_selling_product, mode='lines+markers', name='Least Product Sales', line=dict(color='red')))
+
+fig.update_layout(
+    title='Sales Trend',
+    xaxis_title='Time',
+    yaxis_title='Sales Count/Value',
+    legend_title='Metrics',
+    template='plotly_dark',
+    font=dict(family='Arial', size=14, color='black'),
+    plot_bgcolor='white',
+    paper_bgcolor='white',
+    xaxis=dict(showgrid=True, gridcolor='lightgray'),
+    yaxis=dict(showgrid=True, gridcolor='lightgray')
+)
+
+dash_app.layout = html.Div([
+    html.H1("Sales Report Trends", style={'textAlign': 'center'}),
+    dcc.Graph(figure=fig)
+])
+
+
+class ReportView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Cashier"])]
+
+    def get(self):
+        name, role = get_name_role()
+        TODAY = datetime.today().date()
+        WEEK_AGO = TODAY - timedelta(days=7)
+        MONTH_START = TODAY.replace(day=1)
+
+        sales = db.read("sales")
+
+        weekly_sales = [
+            sale for sale in sales
+            if WEEK_AGO <= sale[5].date() <= TODAY
+        ]
+
+        monthly_sales = [
+            sale for sale in sales
+            if MONTH_START <= sale[5].date() <= TODAY
+        ]
+
+        weekly_total = sum(float(sale[6]) for sale in weekly_sales)
+        monthly_total = sum(float(sale[6]) for sale in monthly_sales)
+
+        product_counter = Counter()
+        for sale in db.read("sales"):
+            product_counter[sale[2]] += int(sale[6])
+
+        # implement this right
+
+        # top_products = product_counter.most_common(5)
+        # least_products = product_counter.most_common()[-5:]
+
+        return render_template("reports.html", name=name, role=role,
+                               weekly_total=weekly_total,
+                               monthly_total=monthly_total)
+                            #    top_products=top_products,
+                            #    least_products=least_products)
+
+
+class WeeklySalesView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Cashier"])]
+
+    def get(self):
+        name, role = get_name_role()
+        sales = db.read("sales")
+
+        today = datetime.today()
+        start_of_week = today - timedelta(days=today.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+
+        weekly_sales = [
+            sale for sale in sales
+            if start_of_week.date() <= sale[5].date() <= end_of_week.date()
+        ]
+
+        return render_template("weekly.html", name=name, role=role, weekly_sales=weekly_sales)
+
+
+class MonthlySalesView(MethodView):
+    decorators = [login_required, role_required(["Admin", "Cashier"])]
+
+    def get(self):
+        name, role = get_name_role()
+        sales = db.read("sales")
+
+        today = datetime.today()
+        start_of_month = today.replace(day=1)
+        _, last_day = monthrange(today.year, today.month)
+        end_of_month = today.replace(day=last_day)
+
+        monthly_sales = [
+            sale for sale in sales
+            if start_of_month.date() <= sale[5].date() <= end_of_month.date()
+        ]
+
+        return render_template("monthly.html", name=name, role=role, sales=sales, monthly_sales=monthly_sales)
+
     
-
-@app.route("/reports")
-@login_required
-@role_required(["Admin", "Cashier"])
-def reports():
-    name, role = get_name_role()
-    return render_template("reports.html", name=name, role=role)
-
-
 class SettingsView(MethodView):
     decorators = [login_required, role_required(["Admin", "Pharmacist", "Cashier"])]
 
@@ -842,6 +951,9 @@ app.add_url_rule("/cart", view_func=CartView.as_view("cart"))
 app.add_url_rule("/add_to_cart", view_func=AddToCartView.as_view("add_to_cart"))
 app.add_url_rule("/remove_from_cart", view_func=RemoveFromCart.as_view("remove_from_cart"))
 app.add_url_rule("/sales", view_func=SalesView.as_view("sales"))
+app.add_url_rule("/reports", view_func=ReportView.as_view("reports"))
+app.add_url_rule("/weekly_sales", view_func=WeeklySalesView.as_view("weekly_sales"))
+app.add_url_rule("/monthly_sales", view_func=MonthlySalesView.as_view("monthly_sales"))
 app.add_url_rule("/settings", view_func=SettingsView.as_view("settings"))
 app.add_url_rule("/settings/edit-users", view_func=EditUsersView.as_view("edit_users"))
 app.add_url_rule("/edit-user/<int:user_id>", view_func=EditUsersView.as_view("edit_user"))
@@ -853,6 +965,8 @@ app.add_url_rule("/edit_user_info/<int:user_id>", view_func=EditUserInfoView.as_
 app.add_url_rule("/stock_shortage", view_func=StockShortageView.as_view("stock_shortage"))
 app.add_url_rule("/expired_products", view_func=ExpiredProductView.as_view("expired_products"))
 app.add_url_rule("/settings/change-password", view_func=ChangePasswordView.as_view("change_password"))
+
+
 
 
 if __name__ == "__main__":

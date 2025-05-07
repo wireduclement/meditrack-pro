@@ -15,21 +15,88 @@
         </div>
       </div>
 
-      <!-- Flash message for caution -->
-      {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div>
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }}" role="alert">
-              {{ message }}
+      <div class="container mt-4">
+        <!-- Flash message for caution -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div>
+              {% for category, message in messages %}
+                <div class="alert alert-{{ category }}" role="alert">
+                  {{ message }}
+                </div>
+              {% endfor %}
             </div>
-          {% endfor %}
+          {% endif %}
+        {% endwith %}
+        <!-- Embed Dash graphs below the cards -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <div class="card w-100">
+              <div class="card-body">
+                <iframe src="/trend_dash/" style="width:100%; height:600px; border:none;"></iframe>
+              </div>
+            </div>
+          </div>
         </div>
-      {% endif %}
-    {% endwith %}
-    
+        <br><br>
+
+        <div class="row">
+          <!-- First Column, First Row -->
+          <div class="col-md-6 mb-3">
+            <div class="card w-100">
+              <div class="card-body">
+                <h5 class="card-title d-flex justify-content-between align-items-center">Weekly Total Sales
+                  <img src="../static/svg/wts.svg" class="rep-img" alt="Total Sales">
+                </h5>
+                <p>GH₵ {{ weekly_total | default(0, true) }}</p>
+                <a href="{{ url_for('weekly_sales') }}" class="btn btn-primary">View</a>
+              </div>
+            </div>
+          </div>
+      
+          <!-- Second Column, First Row -->
+          <div class="col-md-6 mb-3">
+            <div class="card w-100">
+              <div class="card-body">
+                <h5 class="card-title d-flex justify-content-between align-items-center">Monthly Total Sales
+                  <img src="../static/svg/mts.svg" class="rep-img" alt="Total Sales">
+                </h5>
+                <p>GH₵ {{ monthly_total | default(0, true) }}</p>
+                <a href="{{ url_for('monthly_sales') }}" class="btn btn-primary">View</a>
+              </div>
+            </div>
+          </div>
+      
+          <!-- First Column, Second Row -->
+          <div class="col-md-6 mb-3">
+            <div class="card w-100">
+              <div class="card-body">
+                <h5 class="card-title d-flex justify-content-between align-items-center">Top Selling Products
+                  <img src="../static/svg/top.svg" class="rep-img" alt="Total Sales">
+                </h5>
+                <p>{{ top_products | default(0, true) }}</p>
+                <a href="{{ url_for('reports') }}" class="btn btn-primary">View</a>
+              </div>
+            </div>
+          </div>
+      
+          <!-- Second Column, Second Row -->
+          <div class="col-md-6 mb-3">
+            <div class="card w-100">
+              <div class="card-body">
+                <h5 class="card-title d-flex justify-content-between align-items-center">Least Selling Products
+                  <img src="../static/svg/down.svg" class="rep-img" alt="Total Sales">
+                </h5>
+                <p>{{ least_products | default(0, true) }}</p>
+                <a href="{{ url_for('reports') }}"  class="btn btn-primary">View</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <br><br>
+      </div>
     </main>
-    
   </div>
 </div>
 

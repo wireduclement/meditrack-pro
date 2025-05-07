@@ -37,7 +37,7 @@
                   <img src="../static/svg/total_sales.svg" class="rep-img" alt="Total Sales">
                 </h5>
                 <p class="card-text ">Total:</p>
-                <p>GH₵ {{ daily_sales_total }}</p>
+                <p>GH₵ {{ daily_sales_total | default(0, true) }}</p>
                 <a href="{{ url_for('sales') }}" class="btn btn-primary">View</a>
               </div>
             </div>

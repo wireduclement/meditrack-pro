@@ -1,0 +1,74 @@
+{% include "header.html" %}
+
+<div class="container-fluid">
+  <div class="row">
+    {% include "sidebar.html" %}
+
+    <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+      <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Monthly Sales</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+          <div class="btn-group me-2">
+            <a>{{ name }} - {{ role }}</a>
+            <img src="../static/svg/user.svg" class="spaced-img">
+          </div>
+        </div>
+      </div>
+
+      <!-- Flash message for caution -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div>
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}" role="alert">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% endwith %}
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5>Sales & Invoice</h5>  
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Attendant</th>
+            <th scope="col">Customer</th>
+            <th scope="col">Invoice No.</th>
+            <th scope="col">Date</th>
+            <th scope="col">Total</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sale in monthly_sales %}
+          <tr>
+              <td>{{ sale[2] }}</td>
+              <td>{{ sale[3] }}</td>
+              <td>{{ sale[4] }}</td>
+              <td>{{ sale[5] }}</td>
+              <td>GH₵ {{ sale[6] }}</td>
+              <td>
+                <a href="{{ url_for('serve_invoice', filename=sale[4] + '.pdf') }}"
+                   class="btn btn-sm btn-primary" 
+                   target="_blank">
+                    View Invoice
+                </a>
+              </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    
+    </main>
+    
+
+  </div>
+</div>
+
+
+
+{% include "footer.html" %}
