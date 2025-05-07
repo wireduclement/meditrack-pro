@@ -5,7 +5,7 @@ import plotly.express as px
 import plotly.graph_objs as go
 from calendar import monthrange
 from dash import dcc, html 
-from collections import Counter
+from collections import Counter, defaultdict
 from dash.dependencies import Input, Output
 from flask import Flask, render_template, request, redirect, url_for, flash, session, flash, send_from_directory
 from functools import wraps
@@ -156,81 +156,62 @@ dash_app = dash.Dash(__name__, server=app, url_base_pathname='/dash/', external_
 
 
 dash_app.layout = html.Div([
-    dcc.Dropdown(
-        id='sales-view-dropdown',
-        options=[
-            {'label': 'Daily Sales', 'value': 'daily'},
-            {'label': 'Weekly Total', 'value': 'weekly'}
-        ],
-        value='daily',
-        style={'width': '50%'}
-    ),
-    dcc.Graph(id='weekly-sales-graph'),
+    html.H3("Sales Dashboard Analytics", style={'textAlign': 'center', 'marginBottom': '20px'}),
+    dcc.Graph(id='daily-sales-graph'),
     dcc.Graph(id='inventory-status-graph'),
 ])
 
 @dash_app.callback(
-    [Output('weekly-sales-graph', 'figure'),
+    [Output('daily-sales-graph', 'figure'),
      Output('inventory-status-graph', 'figure')],
-    [Input('weekly-sales-graph', 'id'),
-     Input('sales-view-dropdown', 'value')]
+    [Input('daily-sales-graph', 'id')]
 )
+def update_graphs(_):
+    today_str = TODAY.strftime('%Y-%m-%d')
+    
+    # Only fetch sales for today
+    sales = db.read("sales")
+    daily_sales = [sale for sale in sales if sale[5].date() == TODAY]
+    total_sales = sum(float(sale[6]) for sale in daily_sales)
 
-def update_graphs(_, sales_view):
-    start_date = TODAY - timedelta(days=6)
-    weekly_sales = db.read("sales", [("DATE(date)", ">=", str(start_date)), ("DATE(date)", "<=", str(TODAY))])
-    weekly_sales_totals = {}
-    for sale in weekly_sales:
-        day = sale[4].split()[0] if isinstance(sale[4], str) else str(sale[4])
-        weekly_sales_totals[day] = weekly_sales_totals.get(day, 0) + float(sale[6])
-    days = [(TODAY - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(6, -1, -1)]
-    sales_data = [weekly_sales_totals.get(day, 0) for day in days]
-
+    # Inventory for today
     products = db.read("products")
-    weekly_low_stock = []
-    weekly_expired = []
-    for i in range(7):
-        day = TODAY - timedelta(days=i)
-        low_stock = [p for p in products if p[5] <= 20]
-        expired = [p for p in products if p[6] <= day] 
-        weekly_low_stock.append(len(low_stock))
-        weekly_expired.append(len(expired))
+    low_stock = [p for p in products if p[5] <= 20]
+    expired = [p for p in products if p[6] <= TODAY]
 
     sales_df = pd.DataFrame({
-        'Date': days,
-        'Daily Sales': sales_data
+        'Date': [today_str],
+        'Daily Sales': [total_sales]
     })
-
-    if sales_view == 'weekly':
-        sales_df['Weekly Sales'] = sales_df['Daily Sales'].cumsum()
 
     inventory_df = pd.DataFrame({
-        'Date': days,
-        'Low Stock': weekly_low_stock,
-        'Expired Products': weekly_expired
+        'Date': [today_str],
+        'Low Stock': [len(low_stock)],
+        'Expired Products': [len(expired)]
     })
 
-    sales_fig = px.line(
+    sales_fig = px.bar(
         sales_df,
         x='Date',
-        y='Daily Sales' if sales_view == 'daily' else 'Weekly Sales',
-        title=f"{'Daily' if sales_view == 'daily' else 'Weekly'} Sales Trend",
-        labels={'Daily Sales': 'Amount (GH₵)', 'Weekly Sales': 'Amount (GH₵)', 'Date': 'Date'},
+        y='Daily Sales',
+        title="Today's Sales",
+        labels={'Daily Sales': 'Amount (GH₵)', 'Date': 'Date'},
         color_discrete_sequence=['#636EFA']
     )
 
-    inventory_fig = px.line(
-        inventory_df.melt(id_vars='Date', value_vars=['Low Stock', 'Expired Products'], 
+    inventory_fig = px.bar(
+        inventory_df.melt(id_vars='Date', value_vars=['Low Stock', 'Expired Products'],
                           var_name='Category', value_name='Count'),
         x='Date',
         y='Count',
         color='Category',
-        title="Inventory Status Trend",
+        title="Today's Inventory Status",
         labels={'Count': 'Count', 'Date': 'Date'},
         color_discrete_sequence=['#EF553B', '#00CC96']
     )
 
     return sales_fig, inventory_fig
+
 
 
 class DashboardView(MethodView):
@@ -242,9 +223,8 @@ class DashboardView(MethodView):
             return redirect(url_for("login"))
         name, role = get_name_role()
 
-        today = datetime.today().date()
         sales = db.read("sales")
-        daily_sales = [sale for sale in sales if sale[5].date() == today]
+        daily_sales = [sale for sale in sales if sale[5].date() == TODAY]
         daily_sales_total = sum(float(sale[6]) for sale in daily_sales)
 
         products = db.read("products")
@@ -537,9 +517,6 @@ class SalesView(MethodView):
         return render_template("sales.html", name=name, role=role, sales_data=sales_data)
     
 
-
-
-  
 @app.route('/invoices/<filename>')
 def serve_invoice(filename):
     invoice_path = os.path.join('static', 'invoices')
@@ -548,37 +525,80 @@ def serve_invoice(filename):
 
 dash_app = dash.Dash(__name__, server=app, url_base_pathname='/trend_dash/')
 
- # Dummy data — replace with your actual weekly/monthly/product stats
-x_values = ['Week 1', 'Week 2', 'Week 3', 'Week 4']
-weekly_sales = [400, 550, 1000, 700]
-monthly_sales = [1600, 1800, 1700, 1900]
-top_selling_product = [80, 90, 100, 95]
-least_selling_product = [10, 12, 9, 11]
+TODAY = datetime.today().date()
+MONTH_START = TODAY.replace(day=1)
 
-fig = go.Figure()
+sales = db.read("sales")
 
-fig.add_trace(go.Scatter(x=x_values, y=weekly_sales, mode='lines+markers', name='Weekly Sales', line=dict(color='blue')))
-fig.add_trace(go.Scatter(x=x_values, y=monthly_sales, mode='lines+markers', name='Monthly Sales', line=dict(color='green')))
-fig.add_trace(go.Scatter(x=x_values, y=top_selling_product, mode='lines+markers', name='Top Product Sales', line=dict(color='orange')))
-fig.add_trace(go.Scatter(x=x_values, y=least_selling_product, mode='lines+markers', name='Least Product Sales', line=dict(color='red')))
+# Weekly sales
+weekly_totals = defaultdict(float)
+for sale in sales:
+    sale_date = sale[5].date()
+    if MONTH_START <= sale_date <= TODAY:
+        week_index = ((sale_date - MONTH_START).days // 7) + 1
+        weekly_totals[f"Week {week_index}"] += float(sale[6])
 
-fig.update_layout(
-    title='Sales Trend',
-    xaxis_title='Time',
-    yaxis_title='Sales Count/Value',
-    legend_title='Metrics',
-    template='plotly_dark',
-    font=dict(family='Arial', size=14, color='black'),
-    plot_bgcolor='white',
-    paper_bgcolor='white',
-    xaxis=dict(showgrid=True, gridcolor='lightgray'),
-    yaxis=dict(showgrid=True, gridcolor='lightgray')
-)
+weekly_x = sorted(weekly_totals.keys(), key=lambda x: int(x.split()[1]))
+weekly_y = [weekly_totals[week] for week in weekly_x]
 
+# Monthly sales
+monthly_totals = defaultdict(float)
+for sale in sales:
+    sale_date = sale[5].date()
+    month_key = sale_date.strftime('%Y-%m')
+    monthly_totals[month_key] += float(sale[6])
+
+monthly_x = sorted(monthly_totals.keys())[-4:]
+monthly_y = [monthly_totals[month] for month in monthly_x]
+
+# Layout
 dash_app.layout = html.Div([
-    html.H1("Sales Report Trends", style={'textAlign': 'center'}),
-    dcc.Graph(figure=fig)
+    html.H3("Sales Report Trends", style={'textAlign': 'center', 'marginBottom': '20px'}),
+    dcc.Dropdown(
+        id='view-selector',
+        options=[
+            {'label': 'Weekly Sales', 'value': 'weekly'},
+            {'label': 'Monthly Sales', 'value': 'monthly'},
+        ],
+        value='weekly',
+        style={'width': '300px', 'margin': '0 auto 20px'}
+    ),
+    dcc.Graph(id='sales-graph')
 ])
+
+# Callback to update figure
+@dash_app.callback(
+    Output('sales-graph', 'figure'),
+    Input('view-selector', 'value')
+)
+def update_graph(selected_view):
+    if selected_view == 'weekly':
+        x_vals, y_vals = weekly_x, weekly_y
+        name, color = "Weekly Sales", "blue"
+    else:
+        x_vals, y_vals = monthly_x, monthly_y
+        name, color = "Monthly Sales", "green"
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=x_vals, y=y_vals,
+        mode='lines+markers', name=name,
+        line=dict(color=color)
+    ))
+
+    fig.update_layout(
+        xaxis_title='Time',
+        yaxis_title='Sales Count/Value',
+        legend_title='Metrics',
+        template='plotly_dark',
+        font=dict(family='Arial', size=14, color='black'),
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        xaxis=dict(showgrid=True, gridcolor='lightgray'),
+        yaxis=dict(showgrid=True, gridcolor='lightgray')
+    )
+
+    return fig
 
 
 class ReportView(MethodView):
@@ -586,7 +606,6 @@ class ReportView(MethodView):
 
     def get(self):
         name, role = get_name_role()
-        TODAY = datetime.today().date()
         WEEK_AGO = TODAY - timedelta(days=7)
         MONTH_START = TODAY.replace(day=1)
 
@@ -609,16 +628,9 @@ class ReportView(MethodView):
         for sale in db.read("sales"):
             product_counter[sale[2]] += int(sale[6])
 
-        # implement this right
-
-        # top_products = product_counter.most_common(5)
-        # least_products = product_counter.most_common()[-5:]
-
         return render_template("reports.html", name=name, role=role,
                                weekly_total=weekly_total,
                                monthly_total=monthly_total)
-                            #    top_products=top_products,
-                            #    least_products=least_products)
 
 
 class WeeklySalesView(MethodView):
@@ -647,8 +659,7 @@ class DailySalesView(MethodView):
         name, role = get_name_role()
         sales = db.read("sales")
 
-        today = datetime.today().date()
-        daily_sales = [sale for sale in sales if sale[5].date() == today]
+        daily_sales = [sale for sale in sales if sale[5].date() == TODAY]
 
         return render_template("daily_sales.html", name=name, role=role, daily_sales=daily_sales)
 
