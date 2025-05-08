@@ -513,8 +513,19 @@ class SalesView(MethodView):
 
     def get(self):
         name, role = get_name_role()
-        sales_data = db.read("sales")
-        return render_template("sales.html", name=name, role=role, sales_data=sales_data)
+        selected_date = request.args.get("date")
+
+        if selected_date:
+            sales_data = [
+                sale for sale in db.read("sales")
+                if sale[5].date() == datetime.strptime(selected_date, "%Y-%m-%d").date()
+            ]
+            no_sales = len(sales_data) == 0
+        else:
+            sales_data = db.read("sales")
+            no_sales = False
+
+        return render_template("sales.html", name=name, role=role, sales_data=sales_data, selected_date=selected_date, no_sales=no_sales)
     
 
 @app.route('/invoices/<filename>')

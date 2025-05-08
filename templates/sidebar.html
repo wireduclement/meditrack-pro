@@ -37,6 +37,24 @@
           </a>
         </li>
         <li class="nav-item">
+          <a href="{{ url_for('daily_sales') }}" class="nav-link {% if request.endpoint == 'daily_sales' %}active{% else %}text-black{% endif %}">
+            <img src="../static/svg/daily_sales.svg">
+            Daily Sales
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('weekly_sales') }}" class="nav-link {% if request.endpoint == 'weekly_sales' %}active{% else %}text-black{% endif %}">
+            <img src="../static/svg/weekly_sales.svg">
+            Weekly Sales
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('monthly_sales') }}" class="nav-link {% if request.endpoint == 'monthly_sales' %}active{% else %}text-black{% endif %}">
+            <img src="../static/svg/monthly_sales.svg">
+            Monthly Sales
+          </a>
+        </li>
+        <li class="nav-item">
           <a href="{{ url_for('reports') }}" class="nav-link {% if request.endpoint == 'reports' %}active{% else %}text-black{% endif %}">
             <img src="../static/svg/report.svg">
             Reports

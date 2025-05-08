@@ -32,6 +32,19 @@
         <h5>Sales & Invoice</h5>  
       </div>
 
+      <form method="get" class="mb-3 d-flex align-items-center gap-3 flex-wrap">
+        <label for="date" class="mb-0">Select Date:</label>
+        <input type="date" id="date" name="date" value="{{ selected_date }}" class="form-control w-auto">
+        <button type="submit" class="btn btn-primary">Filter</button>
+        <a href="{{ url_for('sales') }}" class="btn btn-secondary">Reset</a>
+      </form>
+      
+      
+      {% if no_sales %}
+        <p>No sales were made on {{ selected_date }}.</p>
+      {% endif %}
+      
+      {% if not no_sales %}
       <table class="table">
         <thead>
           <tr>
@@ -46,22 +59,23 @@
         <tbody>
           {% for sale in sales_data %}
           <tr>
-              <td>{{ sale[2] }}</td>
-              <td>{{ sale[3] }}</td>
-              <td>{{ sale[4] }}</td>
-              <td>{{ sale[5] }}</td>
-              <td>GH₵ {{ sale[6] }}</td>
-              <td>
-                <a href="{{ url_for('serve_invoice', filename=sale[4] + '.pdf') }}"
-                   class="btn btn-sm btn-primary" 
-                   target="_blank">
-                    View Invoice
-                </a>
-              </td>
+            <td>{{ sale[2] }}</td>
+            <td>{{ sale[3] }}</td>
+            <td>{{ sale[4] }}</td>
+            <td>{{ sale[5] }}</td>
+            <td>GH₵ {{ sale[6] }}</td>
+            <td>
+              <a href="{{ url_for('serve_invoice', filename=sale[4] + '.pdf') }}"
+                 class="btn btn-sm btn-primary"
+                 target="_blank">
+                View Invoice
+              </a>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
+      {% endif %}         
     
     </main>
     
