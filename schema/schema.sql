@@ -44,16 +44,6 @@ CREATE TABLE sales (
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
-CREATE TABLE sales_details (
-    sale_detail_id INT AUTO_INCREMENT PRIMARY KEY,
-    sale_id INT,
-    product_id INT,
-    quantity INT,
-    price DECIMAL(10, 2),
-    FOREIGN KEY (sale_id) REFERENCES sales(sale_id),
-    FOREIGN KEY (product_id) REFERENCES products(product_id)
-);
-
 CREATE TABLE customers (
     customer_id INT AUTO_INCREMENT PRIMARY KEY,
     fullname VARCHAR(100),
@@ -61,12 +51,4 @@ CREATE TABLE customers (
     email VARCHAR(100),
     address VARCHAR(100),
     payment_method VARCHAR(50),
-);
-
-CREATE TABLE inventory (
-    inventory_id INT AUTO_INCREMENT PRIMARY KEY,
-    product_id INT,
-    quantity_in_stock INT,
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(product_id)
 );
