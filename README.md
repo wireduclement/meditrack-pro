@@ -75,8 +75,8 @@ python main.py
 └── requirements.txt 
 ```
 
-### Screenshots
-
+### Screenshot
+![screenshot](static/images/ss1.png)
 
 
 ### Future Improvements
