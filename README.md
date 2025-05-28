@@ -19,7 +19,7 @@ A comprehensive solution designed to streamline pharmacy operations, enhance med
 - **Backend**: Flask, MySQL
 - **Frontend**: HTML, Bootstrap, Jinja2
 - **Visualization**: Plotly Dash
-- **PDF Generation**: ReportLab or WeasyPrint
+- **PDF Generation**: FPDF
 
 ## Getting Started
 
