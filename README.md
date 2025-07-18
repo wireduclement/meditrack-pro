@@ -1,5 +1,5 @@
 
-# Pharmacy Management System
+# MediTrack Pro - Pharmacy Management System
 
 A comprehensive solution designed to streamline pharmacy operations, enhance medication management, and improve customer service. This system is built with **Flask**, **MySQL**, and **Bootstrap** that integrates inventory control, prescription processing, customer records, generate invoices, analyze sales trends through Dash-powered charts into one user-friendly platform.
 
